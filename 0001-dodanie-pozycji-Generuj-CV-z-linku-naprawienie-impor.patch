@@ -1,0 +1,1737 @@
+From b67cce6a7c4a5afa1b455f86ac511f896a6ecdbe Mon Sep 17 00:00:00 2001
+From: arturlamali <artur.lamali@gmail.com>
+Date: Fri, 13 Jun 2025 12:51:13 +0200
+Subject: [PATCH] dodanie pozycji Generuj CV z linku, naprawienie importu
+ LinkedIna
+
+---
+ package.json                                  |   1 +
+ pnpm-lock.yaml                                |  78 ++++
+ src/app/dashboard/cv-from-link/page.tsx       |  25 ++
+ src/app/dashboard/cv/page.tsx                 |   1 +
+ src/app/dashboard/jobs/page.tsx               |   1 +
+ src/app/dashboard/layout.tsx                  |   1 +
+ src/app/new/page.tsx                          |   4 +-
+ src/components/ConnectedLinkedinAccount.tsx   |   1 +
+ src/components/GenerateCVFromLink.tsx         | 408 ++++++++++++++++++
+ src/components/JobCard.tsx                    |   1 +
+ src/components/JobSearch.tsx                  |   1 +
+ src/components/app-sidebar.tsx                |  10 +-
+ src/components/ui/label.tsx                   |  27 ++
+ src/env.js                                    |  39 +-
+ src/middleware.ts                             |  28 +-
+ src/server/api/routers/jobs.ts                | 137 +++++-
+ src/server/api/routers/linkedinScraper.ts     | 110 +++--
+ src/server/api/routers/resume.ts              | 298 ++++++++++++-
+ src/server/api/schemas/jobs.ts                |   1 +
+ src/server/api/schemas/linkedin.ts            |  20 +-
+ src/server/api/utils/resumeRocketJobsUtils.ts |   1 +
+ src/server/db/schema.postgres.ts              |  13 +-
+ src/server/db/schema.sqlite.ts                |   1 +
+ src/server/supabase/supabaseClient.ts         |   1 +
+ src/server/supabase/supabaseTypes.ts          |   1 +
+ 25 files changed, 1101 insertions(+), 108 deletions(-)
+ create mode 100644 src/app/dashboard/cv-from-link/page.tsx
+ create mode 100644 src/components/GenerateCVFromLink.tsx
+ create mode 100644 src/components/ui/label.tsx
+
+diff --git a/package.json b/package.json
+index 4620745..c9b91b6 100644
+--- a/package.json
++++ b/package.json
+@@ -37,6 +37,7 @@
+ 		"@radix-ui/react-collapsible": "^1.1.3",
+ 		"@radix-ui/react-dialog": "^1.1.6",
+ 		"@radix-ui/react-dropdown-menu": "^2.1.6",
++		"@radix-ui/react-label": "2.1.7",
+ 		"@radix-ui/react-separator": "^1.1.2",
+ 		"@radix-ui/react-slider": "^1.2.3",
+ 		"@radix-ui/react-slot": "^1.1.2",
+diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
+index 8469c01..1e67d30 100644
+--- a/pnpm-lock.yaml
++++ b/pnpm-lock.yaml
+@@ -35,6 +35,9 @@ importers:
+       '@radix-ui/react-dropdown-menu':
+         specifier: ^2.1.6
+         version: 2.1.6(@types/react-dom@18.3.5(@types/react@18.3.18))(@types/react@18.3.18)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
++      '@radix-ui/react-label':
++        specifier: 2.1.7
++        version: 2.1.7(@types/react-dom@18.3.5(@types/react@18.3.18))(@types/react@18.3.18)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+       '@radix-ui/react-separator':
+         specifier: ^1.1.2
+         version: 1.1.2(@types/react-dom@18.3.5(@types/react@18.3.18))(@types/react@18.3.18)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+@@ -968,6 +971,15 @@ packages:
+       '@types/react':
+         optional: true
+ 
++  '@radix-ui/react-compose-refs@1.1.2':
++    resolution: {integrity: sha512-z4eqJvfiNnFMHIIvXP3CY57y2WJs5g2v3X0zm9mEJkrkNv4rDxu+sg9Jh8EkXyeqBkB7SOcboo9dMVqhyrACIg==}
++    peerDependencies:
++      '@types/react': '*'
++      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
++    peerDependenciesMeta:
++      '@types/react':
++        optional: true
++
+   '@radix-ui/react-context@1.1.1':
+     resolution: {integrity: sha512-UASk9zi+crv9WteK/NU4PLvOoL3OuE6BWVKNF6hPRBtYBDXQ2u5iu3O59zUlJiTVvkyuycnqrztsHVJwcK9K+Q==}
+     peerDependencies:
+@@ -1061,6 +1073,19 @@ packages:
+       '@types/react':
+         optional: true
+ 
++  '@radix-ui/react-label@2.1.7':
++    resolution: {integrity: sha512-YT1GqPSL8kJn20djelMX7/cTRp/Y9w5IZHvfxQTVHrOqa2yMl7i/UfMqKRU5V7mEyKTrUVgJXhNQPVCG8PBLoQ==}
++    peerDependencies:
++      '@types/react': '*'
++      '@types/react-dom': '*'
++      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
++      react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
++    peerDependenciesMeta:
++      '@types/react':
++        optional: true
++      '@types/react-dom':
++        optional: true
++
+   '@radix-ui/react-menu@2.1.6':
+     resolution: {integrity: sha512-tBBb5CXDJW3t2mo9WlO7r6GTmWV0F0uzHZVFmlRmYpiSK1CDU5IKojP1pm7oknpBOrFZx/YgBRW9oorPO2S/Lg==}
+     peerDependencies:
+@@ -1126,6 +1151,19 @@ packages:
+       '@types/react-dom':
+         optional: true
+ 
++  '@radix-ui/react-primitive@2.1.3':
++    resolution: {integrity: sha512-m9gTwRkhy2lvCPe6QJp4d3G1TYEUHn/FzJUtq9MjH46an1wJU+GdoGC5VLof8RX8Ft/DlpshApkhswDLZzHIcQ==}
++    peerDependencies:
++      '@types/react': '*'
++      '@types/react-dom': '*'
++      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
++      react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
++    peerDependenciesMeta:
++      '@types/react':
++        optional: true
++      '@types/react-dom':
++        optional: true
++
+   '@radix-ui/react-roving-focus@1.1.2':
+     resolution: {integrity: sha512-zgMQWkNO169GtGqRvYrzb0Zf8NhMHS2DuEB/TiEmVnpr5OqPU3i8lfbxaAmC2J/KYuIQxyoQQ6DxepyXp61/xw==}
+     peerDependencies:
+@@ -1174,6 +1212,15 @@ packages:
+       '@types/react':
+         optional: true
+ 
++  '@radix-ui/react-slot@1.2.3':
++    resolution: {integrity: sha512-aeNmHnBxbi2St0au6VBVC7JXFlhLlOnvIIlePNniyUNAClzmtAUEY8/pBiK3iHjufOlwA+c20/8jngo7xcrg8A==}
++    peerDependencies:
++      '@types/react': '*'
++      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
++    peerDependenciesMeta:
++      '@types/react':
++        optional: true
++
+   '@radix-ui/react-tooltip@1.1.8':
+     resolution: {integrity: sha512-YAA2cu48EkJZdAMHC0dqo9kialOcRStbtiY4nJPaht7Ptrhcvpo+eDChaM6BIs8kL6a8Z5l5poiqLnXcNduOkA==}
+     peerDependencies:
+@@ -3926,6 +3973,12 @@ snapshots:
+     optionalDependencies:
+       '@types/react': 18.3.18
+ 
++  '@radix-ui/react-compose-refs@1.1.2(@types/react@18.3.18)(react@18.3.1)':
++    dependencies:
++      react: 18.3.1
++    optionalDependencies:
++      '@types/react': 18.3.18
++
+   '@radix-ui/react-context@1.1.1(@types/react@18.3.18)(react@18.3.1)':
+     dependencies:
+       react: 18.3.1
+@@ -4016,6 +4069,15 @@ snapshots:
+     optionalDependencies:
+       '@types/react': 18.3.18
+ 
++  '@radix-ui/react-label@2.1.7(@types/react-dom@18.3.5(@types/react@18.3.18))(@types/react@18.3.18)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
++    dependencies:
++      '@radix-ui/react-primitive': 2.1.3(@types/react-dom@18.3.5(@types/react@18.3.18))(@types/react@18.3.18)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
++      react: 18.3.1
++      react-dom: 18.3.1(react@18.3.1)
++    optionalDependencies:
++      '@types/react': 18.3.18
++      '@types/react-dom': 18.3.5(@types/react@18.3.18)
++
+   '@radix-ui/react-menu@2.1.6(@types/react-dom@18.3.5(@types/react@18.3.18))(@types/react@18.3.18)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+     dependencies:
+       '@radix-ui/primitive': 1.1.1
+@@ -4089,6 +4151,15 @@ snapshots:
+       '@types/react': 18.3.18
+       '@types/react-dom': 18.3.5(@types/react@18.3.18)
+ 
++  '@radix-ui/react-primitive@2.1.3(@types/react-dom@18.3.5(@types/react@18.3.18))(@types/react@18.3.18)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
++    dependencies:
++      '@radix-ui/react-slot': 1.2.3(@types/react@18.3.18)(react@18.3.1)
++      react: 18.3.1
++      react-dom: 18.3.1(react@18.3.1)
++    optionalDependencies:
++      '@types/react': 18.3.18
++      '@types/react-dom': 18.3.5(@types/react@18.3.18)
++
+   '@radix-ui/react-roving-focus@1.1.2(@types/react-dom@18.3.5(@types/react@18.3.18))(@types/react@18.3.18)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+     dependencies:
+       '@radix-ui/primitive': 1.1.1
+@@ -4141,6 +4212,13 @@ snapshots:
+     optionalDependencies:
+       '@types/react': 18.3.18
+ 
++  '@radix-ui/react-slot@1.2.3(@types/react@18.3.18)(react@18.3.1)':
++    dependencies:
++      '@radix-ui/react-compose-refs': 1.1.2(@types/react@18.3.18)(react@18.3.1)
++      react: 18.3.1
++    optionalDependencies:
++      '@types/react': 18.3.18
++
+   '@radix-ui/react-tooltip@1.1.8(@types/react-dom@18.3.5(@types/react@18.3.18))(@types/react@18.3.18)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+     dependencies:
+       '@radix-ui/primitive': 1.1.1
+diff --git a/src/app/dashboard/cv-from-link/page.tsx b/src/app/dashboard/cv-from-link/page.tsx
+new file mode 100644
+index 0000000..e9fff98
+--- /dev/null
++++ b/src/app/dashboard/cv-from-link/page.tsx
+@@ -0,0 +1,25 @@
++//src/app/dashboard/cv-from-link/page.tsx
++import PrivatePage from "~/components/AuthProvider/PrivatePage/PrivatePage";
++import { GenerateCVFromLink } from "~/components/GenerateCVFromLink";
++
++export default function CVFromLinkPage() {
++	return (
++		<PrivatePage>
++			<div className="container mx-auto py-6 w-full max-w-4xl">
++				<div className="mb-8">
++					<h1 className="text-3xl font-bold">Generuj CV z linku</h1>
++					<p className="text-muted-foreground mt-2">
++						Podaj link do oferty pracy z LinkedIn lub RocketJobs, a my wygenerujemy 
++						dla Ciebie CV idealnie dopasowane do tego stanowiska.
++					</p>
++					<div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
++						<p className="text-sm text-blue-800 dark:text-blue-200">
++							<strong>Wspieramy:</strong> linkedin.com i rocketjobs.pl
++						</p>
++					</div>
++				</div>
++				<GenerateCVFromLink />
++			</div>
++		</PrivatePage>
++	);
++}
+\ No newline at end of file
+diff --git a/src/app/dashboard/cv/page.tsx b/src/app/dashboard/cv/page.tsx
+index c1be89f..34d06d3 100644
+--- a/src/app/dashboard/cv/page.tsx
++++ b/src/app/dashboard/cv/page.tsx
+@@ -1,3 +1,4 @@
++//src/app/dashboard/cv/page.tsx
+ "use client";
+ import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+ import { Button } from "~/components/ui/button";
+diff --git a/src/app/dashboard/jobs/page.tsx b/src/app/dashboard/jobs/page.tsx
+index 90f2639..09f78b7 100644
+--- a/src/app/dashboard/jobs/page.tsx
++++ b/src/app/dashboard/jobs/page.tsx
+@@ -1,3 +1,4 @@
++//src/app/dashboard/jobs/page.tsx
+ import PrivatePage from "~/components/AuthProvider/PrivatePage/PrivatePage";
+ import { JobSearch } from "~/components/JobSearch";
+ 
+diff --git a/src/app/dashboard/layout.tsx b/src/app/dashboard/layout.tsx
+index 81460ba..4b90c1d 100644
+--- a/src/app/dashboard/layout.tsx
++++ b/src/app/dashboard/layout.tsx
+@@ -1,3 +1,4 @@
++//src// src/app/dashboard/layout.tsx
+ "use client";
+ 
+ import type { ReactNode } from "react";
+diff --git a/src/app/new/page.tsx b/src/app/new/page.tsx
+index a266d0f..c4af5ba 100644
+--- a/src/app/new/page.tsx
++++ b/src/app/new/page.tsx
+@@ -109,10 +109,10 @@ export default function LandingPage() {
+ 							<div>
+ 								<LinkedinIcon className="mx-auto mb-4 h-12 w-12 text-blue-400" />
+ 								<h3 className="mb-2 text-xl font-semibold text-white">
+-									Zacznij z LinkedIN
++									Zacznij z LinkedIn
+ 								</h3>
+ 								<p className="mb-6 text-sm text-gray-400">
+-									Najszybsza opcja.
++									Najszybsza opcja
+ 									<br />
+ 									<span className="font-medium text-white/80">
+ 										(zajmie ~30 sekund)
+diff --git a/src/components/ConnectedLinkedinAccount.tsx b/src/components/ConnectedLinkedinAccount.tsx
+index 9ddc673..4907253 100644
+--- a/src/components/ConnectedLinkedinAccount.tsx
++++ b/src/components/ConnectedLinkedinAccount.tsx
+@@ -1,3 +1,4 @@
++//src//src/components/ConnectedLinkedinAccount.tsx
+ import { useForm } from "react-hook-form";
+ import { api } from "~/trpc/react";
+ import { Button } from "~/components/ui/button";
+diff --git a/src/components/GenerateCVFromLink.tsx b/src/components/GenerateCVFromLink.tsx
+new file mode 100644
+index 0000000..120e714
+--- /dev/null
++++ b/src/components/GenerateCVFromLink.tsx
+@@ -0,0 +1,408 @@
++//src/components/GenerateCVFromLink.tsx
++"use client";
++
++import { useState, useEffect, useCallback } from "react";
++import { useForm } from "react-hook-form";
++import { useRouter } from "next/navigation";
++import { api } from "~/trpc/react";
++import { Button } from "~/components/ui/button";
++import {
++	Card,
++	CardContent,
++	CardFooter,
++	CardHeader,
++	CardTitle,
++	CardDescription,
++} from "~/components/ui/card";
++import { Input } from "~/components/ui/input";
++import { Alert, AlertTitle, AlertDescription } from "~/components/ui/alert";
++import { ExternalLink, Loader2, CheckCircle, XCircle, Link as LinkIcon } from "lucide-react";
++import { Skeleton } from "~/components/ui/skeleton";
++import { Label } from "~/components/ui/label";
++import { toast } from "sonner";
++
++interface JobLinkForm {
++	jobUrl: string;
++	email?: string;
++	phone?: string;
++	location?: string;
++}
++
++type JobType = "linkedin" | "rocketjobs" | "unknown";
++
++const detectJobType = (url: string): JobType => {
++	if (url.includes("linkedin.com/jobs")) {
++		return "linkedin";
++	}
++	if (url.includes("rocketjobs.pl/oferta-pracy")) {
++		return "rocketjobs";
++	}
++	return "unknown";
++};
++
++const extractJobId = (url: string, type: JobType): string | null => {
++	try {
++		if (type === "linkedin") {
++			// Clean LinkedIn URL by removing tracking parameters
++			const cleanUrl = url.split('?')[0]; // Remove query parameters
++			// Extract ID from LinkedIn URL: https://www.linkedin.com/jobs/view/123456789
++			const match = cleanUrl.match(/\/jobs\/view\/(\d+)/);
++			return match?.[1] || null;
++		}
++		if (type === "rocketjobs") {
++			// Extract slug from RocketJobs URL: https://rocketjobs.pl/oferta-pracy/company-name--job-title-location
++			const match = url.match(/\/oferta-pracy\/([^/?]+)/);
++			return match?.[1] || null;
++		}
++		return null;
++	} catch {
++		return null;
++	}
++};
++
++export const GenerateCVFromLink = () => {
++	const router = useRouter();
++	const [step, setStep] = useState<"input" | "fetching" | "generating" | "error">("input");
++	const [jobData, setJobData] = useState<any>(null);
++	const [errorMessage, setErrorMessage] = useState<string>("");
++	const [cvGenerationTriggered, setCvGenerationTriggered] = useState(false);
++	
++	// Stable job identification state
++	const [jobParams, setJobParams] = useState<{
++		type: JobType;
++		id: string;
++		url: string;
++	} | null>(null);
++
++	const {
++		register,
++		handleSubmit,
++		formState: { errors },
++		watch,
++		setValue,
++	} = useForm<JobLinkForm>();
++
++	const jobUrl = watch("jobUrl");
++
++	// LinkedIn job query - STABLE with useCallback
++	const linkedInQueryEnabled = useCallback(() => {
++		return jobParams?.type === "linkedin" && Boolean(jobParams.id) && !cvGenerationTriggered;
++	}, [jobParams?.type, jobParams?.id, cvGenerationTriggered]);
++
++	const { 
++		data: linkedinJob,
++		isFetching: linkedinLoading,
++		error: linkedinError,
++	} = api.linkedinScraper.getLinkedinJobByUrl.useQuery(
++		{ id: jobParams?.id || "0" },
++		{ 
++			enabled: linkedInQueryEnabled(),
++			retry: 1, // Limit retries to prevent infinite loops
++			refetchOnWindowFocus: false,
++			refetchOnMount: false,
++			staleTime: 5 * 60 * 1000, // 5 minutes
++		}
++	);
++
++	// RocketJobs job query - STABLE  
++	const rocketJobsQueryEnabled = useCallback(() => {
++		return jobParams?.type === "rocketjobs" && Boolean(jobParams.id) && !cvGenerationTriggered;
++	}, [jobParams?.type, jobParams?.id, cvGenerationTriggered]);
++
++	const { 
++		data: rocketJob,
++		isFetching: rocketLoading,
++		error: rocketError,
++	} = api.jobs.getJobBySlug.useQuery(
++		{ slug: jobParams?.id || "none" },
++		{ 
++			enabled: rocketJobsQueryEnabled(),
++			retry: 1,
++			refetchOnWindowFocus: false,
++			refetchOnMount: false,
++			staleTime: 5 * 60 * 1000,
++		}
++	);
++
++	// Generate and save CV mutation
++	const { mutate: generateAndSaveCV, isPending: isGenerating } = api.resume.generateResumeFromUrlAndSave.useMutation({
++		onSuccess: (data) => {
++			console.log("✅ CV generated and saved successfully:", data.id);
++			toast.success("CV zostało wygenerowane i zapisane! 🎉");
++			
++			// Clear job params to disable queries
++			setJobParams(null);
++			
++			// Small delay to ensure proper state cleanup before navigation
++			setTimeout(() => {
++				router.push("/dashboard/cv");
++			}, 1000);
++		},
++		onError: (error) => {
++			console.error("❌ CV generation error:", error);
++			toast.error(`Błąd podczas generowania CV: ${error.message}`);
++			setStep("error");
++			setErrorMessage(error.message);
++			setCvGenerationTriggered(false); // Reset for potential retry
++		}
++	});
++
++	// Effect to handle job data fetching completion and automatic CV generation
++	useEffect(() => {
++		if (!jobParams || cvGenerationTriggered) return;
++
++		const currentJobData = jobParams.type === "linkedin" ? linkedinJob : rocketJob;
++		const isLoading = jobParams.type === "linkedin" ? linkedinLoading : rocketLoading;
++		const error = jobParams.type === "linkedin" ? linkedinError : rocketError;
++
++		// Handle errors
++		if (error) {
++			console.error(`❌ Error fetching ${jobParams.type} job:`, error);
++			setErrorMessage(error.message);
++			setStep("error");
++			setCvGenerationTriggered(false); // Reset flag on error
++			return;
++		}
++
++		// Handle successful data fetch
++		if (currentJobData && !isLoading && !cvGenerationTriggered) {
++			console.log("📄 Job data received, triggering CV generation:", {
++				type: jobParams.type,
++				title: currentJobData.job_title || currentJobData.title,
++				company: currentJobData.company_name || currentJobData.companyName
++			});
++			
++			setJobData(currentJobData);
++			setStep("generating");
++			setCvGenerationTriggered(true);
++
++			// Trigger CV generation
++			generateAndSaveCV({
++				jobUrl: jobParams.url,
++				jobType: jobParams.type,
++				userContactData: undefined, // Use LinkedIn profile data
++			});
++		}
++	}, [jobParams, linkedinJob, rocketJob, linkedinLoading, rocketLoading, linkedinError, rocketError, cvGenerationTriggered, generateAndSaveCV]);
++
++	const handleUrlSubmit = () => {
++		const type = detectJobType(jobUrl);
++		const id = extractJobId(jobUrl, type);
++
++		if (type === "unknown") {
++			toast.error("Niepoznany format URL. Wspieramy tylko LinkedIn i RocketJobs.");
++			return;
++		}
++
++		if (!id) {
++			toast.error("Nie udało się wyodrębnić ID oferty z podanego URL.");
++			return;
++		}
++
++		console.log("🚀 Starting job data fetch:", { type, id, url: jobUrl });
++		
++		// Reset previous state
++		setJobData(null);
++		setErrorMessage("");
++		setCvGenerationTriggered(false);
++		
++		// Set job parameters - this will trigger the appropriate query
++		setJobParams({ type, id, url: jobUrl });
++		setStep("fetching");
++	};
++
++	const resetForm = () => {
++		setStep("input");
++		setJobParams(null);
++		setJobData(null);
++		setErrorMessage("");
++		setCvGenerationTriggered(false);
++		setValue("jobUrl", "");
++	};
++
++	// Loading state during data fetch
++	const isCurrentlyFetching = (linkedinLoading && jobParams?.type === "linkedin") || 
++	                          (rocketLoading && jobParams?.type === "rocketjobs");
++
++	// Step 1: URL Input
++	if (step === "input") {
++		return (
++			<Card>
++				<CardHeader>
++					<CardTitle className="flex items-center gap-2">
++						<LinkIcon className="h-5 w-5" />
++						Podaj link do oferty pracy
++					</CardTitle>
++					<CardDescription>
++						Wklej URL do oferty pracy - CV zostanie automatycznie wygenerowane i zapisane
++					</CardDescription>
++				</CardHeader>
++				<CardContent>
++					<div className="space-y-4">
++						<div>
++							<Label htmlFor="jobUrl">URL oferty pracy</Label>
++							<Input
++								id="jobUrl"
++								placeholder="https://www.linkedin.com/jobs/view/123456789 lub https://rocketjobs.pl/oferta-pracy/..."
++								{...register("jobUrl", {
++									required: "Podaj link do oferty pracy",
++									pattern: {
++										value: /(linkedin\.com\/jobs|rocketjobs\.pl\/oferta-pracy)/,
++										message: "URL musi zawierać linkedin.com/jobs lub rocketjobs.pl/oferta-pracy"
++									}
++								})}
++								className="mt-1"
++							/>
++							{errors.jobUrl && (
++								<p className="text-sm text-red-500 mt-1">
++									{errors.jobUrl.message}
++								</p>
++							)}
++						</div>
++						
++						<Alert>
++							<AlertTitle>🚀 Automatyczne generowanie CV</AlertTitle>
++							<AlertDescription className="text-sm">
++								Po podaniu linku, system automatycznie pobierze dane oferty i wygeneruje 
++								spersonalizowane CV na podstawie Twojego profilu LinkedIn.
++							</AlertDescription>
++						</Alert>
++					</div>
++				</CardContent>
++				<CardFooter>
++					<Button 
++						onClick={handleUrlSubmit} 
++						className="w-full"
++						disabled={!jobUrl || !!errors.jobUrl}
++					>
++						Wygeneruj CV automatycznie 🎯
++					</Button>
++				</CardFooter>
++			</Card>
++		);
++	}
++
++	// Step 2: Fetching job data
++	if (step === "fetching" || isCurrentlyFetching) {
++		return (
++			<Card>
++				<CardHeader>
++					<CardTitle className="flex items-center gap-2">
++						<Loader2 className="h-5 w-5 animate-spin" />
++						Pobieranie danych oferty...
++					</CardTitle>
++					<CardDescription>
++						{jobParams?.type === "linkedin" ? "Łączenie z LinkedIn API..." : "Pobieranie z RocketJobs..."}
++					</CardDescription>
++				</CardHeader>
++				<CardContent>
++					<div className="space-y-4">
++						<div className="flex items-center gap-2 text-sm">
++							<Loader2 className="h-4 w-4 animate-spin" />
++							Analizowanie oferty pracy...
++						</div>
++						<Skeleton className="h-4 w-3/4" />
++						<Skeleton className="h-4 w-1/2" />
++						<Skeleton className="h-20 w-full" />
++					</div>
++				</CardContent>
++			</Card>
++		);
++	}
++
++	// Step 3: Generating CV
++	if (step === "generating" || isGenerating) {
++		return (
++			<Card>
++				<CardHeader>
++					<CardTitle className="flex items-center gap-2">
++						<Loader2 className="h-5 w-5 animate-spin" />
++						Generowanie spersonalizowanego CV...
++					</CardTitle>
++					<CardDescription>
++						Dostosowujemy Twoje CV do oferty "{jobData?.job_title || jobData?.title}" w firmie "{jobData?.company_name || jobData?.companyName}"
++					</CardDescription>
++				</CardHeader>
++				<CardContent>
++					<div className="space-y-4">
++						<div className="flex items-center gap-2 text-sm">
++							<CheckCircle className="h-4 w-4 text-green-600" />
++							Dane oferty pobrane pomyślnie
++						</div>
++						<div className="flex items-center gap-2 text-sm">
++							<Loader2 className="h-4 w-4 animate-spin" />
++							Analizowanie wymagań stanowiska...
++						</div>
++						<div className="flex items-center gap-2 text-sm text-muted-foreground">
++							<Loader2 className="h-4 w-4 animate-spin" />
++							Dopasowywanie CV do profilu LinkedIn...
++						</div>
++						<div className="flex items-center gap-2 text-sm text-muted-foreground">
++							<Loader2 className="h-4 w-4 animate-spin" />
++							Zapisywanie wygenerowanego CV...
++						</div>
++					</div>
++				</CardContent>
++			</Card>
++		);
++	}
++
++	// Step 4: Error state
++	if (step === "error") {
++		const isLinkedInForbidden = errorMessage.includes("403") || errorMessage.includes("Forbidden");
++		
++		return (
++			<Card>
++				<CardHeader>
++					<CardTitle className="flex items-center gap-2 text-red-600">
++						<XCircle className="h-5 w-5" />
++						{isLinkedInForbidden ? "LinkedIn API niedostępne" : "Błąd podczas pobierania oferty"}
++					</CardTitle>
++				</CardHeader>
++				<CardContent>
++					<Alert variant="destructive">
++						<AlertTitle>
++							{isLinkedInForbidden ? "Problem z dostępem do LinkedIn" : "Nie udało się pobrać danych oferty"}
++						</AlertTitle>
++						<AlertDescription className="space-y-2">
++							{isLinkedInForbidden ? (
++								<div>
++									<p>LinkedIn API zwrócił błąd 403 (brak dostępu). To może być spowodowane:</p>
++									<ul className="list-disc ml-4 mt-2 space-y-1 text-sm">
++										<li>Wygasłym kluczem API</li>
++										<li>Przekroczeniem limitów API</li>
++										<li>Ograniczeniami LinkedIn dla tej oferty</li>
++									</ul>
++									<p className="mt-3 text-sm font-medium">
++										💡 <strong>Alternatywy:</strong>
++									</p>
++									<ul className="list-disc ml-4 mt-1 space-y-1 text-sm">
++										<li>Spróbuj oferty z <strong>RocketJobs.pl</strong></li>
++										<li>Użyj wyszukiwarki ofert w zakładce "Generuj CV"</li>
++									</ul>
++								</div>
++							) : (
++								<p>{errorMessage}</p>
++							)}
++						</AlertDescription>
++					</Alert>
++				</CardContent>
++				<CardFooter className="flex gap-2">
++					<Button onClick={resetForm} variant="outline" className="flex-1">
++						Spróbuj ponownie
++					</Button>
++					{isLinkedInForbidden && (
++						<Button 
++							onClick={() => router.push('/dashboard/jobs')} 
++							className="flex-1"
++						>
++							Przejdź do wyszukiwarki 🔍
++						</Button>
++					)}
++				</CardFooter>
++			</Card>
++		);
++	}
++
++	return null;
++};
+\ No newline at end of file
+diff --git a/src/components/JobCard.tsx b/src/components/JobCard.tsx
+index 2efb59a..782cb65 100644
+--- a/src/components/JobCard.tsx
++++ b/src/components/JobCard.tsx
+@@ -1,3 +1,4 @@
++//src/components/JobCard.tsx
+ import { useState } from "react";
+ import Image from "next/image";
+ import { Badge } from "~/components/ui/badge";
+diff --git a/src/components/JobSearch.tsx b/src/components/JobSearch.tsx
+index ec95d62..3790eac 100644
+--- a/src/components/JobSearch.tsx
++++ b/src/components/JobSearch.tsx
+@@ -1,3 +1,4 @@
++//src/components/JobSearch.tsx
+ "use client";
+ 
+ import { useState, useEffect, useMemo, useCallback } from "react";
+diff --git a/src/components/app-sidebar.tsx b/src/components/app-sidebar.tsx
+index a79cbd7..837dc12 100644
+--- a/src/components/app-sidebar.tsx
++++ b/src/components/app-sidebar.tsx
+@@ -1,7 +1,8 @@
++//src/components/app-sidebar.tsx
+ "use client";
+ 
+ import { DashboardIcon } from "@radix-ui/react-icons";
+-import { FileOutputIcon, LifeBuoy, Moon, Send, FileText } from "lucide-react";
++import { FileOutputIcon, LifeBuoy, Moon, Send, FileText, Link } from "lucide-react";
+ import { NavMain } from "~/components/nav-main";
+ import { NavSecondary } from "~/components/nav-secondary";
+ import { NavUser } from "~/components/nav-user";
+@@ -31,6 +32,11 @@ const data = {
+ 			url: "/dashboard/jobs",
+ 			icon: FileOutputIcon,
+ 		},
++		{
++			title: "Generuj CV z linku",
++			url: "/dashboard/cv-from-link",
++			icon: Link,
++		},
+ 		{
+ 			title: "Moje CV",
+ 			url: "/dashboard/cv",
+@@ -94,4 +100,4 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+ 			</SidebarFooter>
+ 		</Sidebar>
+ 	);
+-}
++}
+\ No newline at end of file
+diff --git a/src/components/ui/label.tsx b/src/components/ui/label.tsx
+new file mode 100644
+index 0000000..2c84bc6
+--- /dev/null
++++ b/src/components/ui/label.tsx
+@@ -0,0 +1,27 @@
++//src/components/ui/label.tsx
++"use client"
++
++import * as React from "react"
++import * as LabelPrimitive from "@radix-ui/react-label"
++import { cva, type VariantProps } from "class-variance-authority"
++
++import { cn } from "~/lib/utils"
++
++const labelVariants = cva(
++  "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
++)
++
++const Label = React.forwardRef<
++  React.ElementRef<typeof LabelPrimitive.Root>,
++  React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root> &
++    VariantProps<typeof labelVariants>
++>(({ className, ...props }, ref) => (
++  <LabelPrimitive.Root
++    ref={ref}
++    className={cn(labelVariants(), className)}
++    {...props}
++  />
++))
++Label.displayName = LabelPrimitive.Root.displayName
++
++export { Label }
+\ No newline at end of file
+diff --git a/src/env.js b/src/env.js
+index ba9953c..325605c 100644
+--- a/src/env.js
++++ b/src/env.js
+@@ -1,3 +1,4 @@
++// src/env.js
+ import { createEnv } from "@t3-oss/env-nextjs";
+ import { z } from "zod";
+ 
+@@ -7,18 +8,25 @@ export const env = createEnv({
+ 	 * isn't built with invalid env vars.
+ 	 */
+ 	server: {
+-		DATABASE_URL_SQLITE: z.string().url(),
+-		DATABASE_AUTH_TOKEN_SQLITE: z.string().min(1),
++		DATABASE_URL_SQLITE: z.string().url().optional(), // Made optional for development
++		DATABASE_AUTH_TOKEN_SQLITE: z.string().min(1).optional(), // Made optional
+ 		NODE_ENV: z
+ 			.enum(["development", "test", "production"])
+ 			.default("development"),
+-		RAPIDAPI_KEY: z.string().min(1),
+-		RAPIDAPI_HOST: z.string().min(1),
+-		LINKEDIN_API_URL: z.string().url(),
+-		DATABASE_URL_SUPABASE: z.string().url(),
+-		DIRECT_URL_SUPABASE: z.string().url(),
+-		SUPABASE_SERVICE_KEY: z.string().min(1),
+-		OPENROUTER_API_KEY: z.string().min(1),
++		RAPIDAPI_KEY: z.string().min(1).optional(), // Made optional
++		RAPIDAPI_HOST: z.string().min(1).optional(), // Made optional
++		LINKEDIN_API_URL: z.string().url().optional(), // Made optional
++		DATABASE_URL_SUPABASE: z.string().url().optional(), // Made optional
++		DIRECT_URL_SUPABASE: z.string().url().optional(), // Made optional
++		SUPABASE_SERVICE_KEY: z.string().min(1).optional(), // Made optional
++		OPENROUTER_API_KEY: z.string().min(1).optional(), // Made optional
++		// AI API Keys - made optional for development
++		GOOGLE_GENERATIVE_AI_API_KEY: z.string().min(1).optional(),
++		ANTHROPIC_API_KEY: z.string().min(1).optional(),
++		OPENAI_API_KEY: z.string().min(1).optional(),
++		// Maintenance mode
++		MAINTENANCE_MODE: z.string().transform(val => val === "true").default("false"),
++		IS_IN_MAINTENANCE_MODE: z.string().transform(val => val === "true").default("false"),
+ 	},
+ 
+ 	/**
+@@ -27,9 +35,8 @@ export const env = createEnv({
+ 	 * `NEXT_PUBLIC_`.
+ 	 */
+ 	client: {
+-		// NEXT_PUBLIC_CLIENTVAR: z.string(),
+-		NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
+-		NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string(),
++		NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(), // Made optional
++		NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().optional(), // Made optional
+ 	},
+ 
+ 	/**
+@@ -38,7 +45,6 @@ export const env = createEnv({
+ 	 */
+ 	runtimeEnv: {
+ 		NODE_ENV: process.env.NODE_ENV,
+-		// NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
+ 		RAPIDAPI_KEY: process.env.RAPIDAPI_KEY,
+ 		RAPIDAPI_HOST: process.env.RAPIDAPI_HOST,
+ 		LINKEDIN_API_URL: process.env.LINKEDIN_API_URL,
+@@ -50,6 +56,11 @@ export const env = createEnv({
+ 		DATABASE_URL_SQLITE: process.env.DATABASE_URL_SQLITE,
+ 		DATABASE_AUTH_TOKEN_SQLITE: process.env.DATABASE_AUTH_TOKEN_SQLITE,
+ 		OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
++		GOOGLE_GENERATIVE_AI_API_KEY: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
++		ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
++		OPENAI_API_KEY: process.env.OPENAI_API_KEY,
++		MAINTENANCE_MODE: process.env.MAINTENANCE_MODE,
++		IS_IN_MAINTENANCE_MODE: process.env.IS_IN_MAINTENANCE_MODE,
+ 	},
+ 	/**
+ 	 * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
+@@ -61,4 +72,4 @@ export const env = createEnv({
+ 	 * `SOME_VAR=''` will throw an error.
+ 	 */
+ 	emptyStringAsUndefined: true,
+-});
++});
+\ No newline at end of file
+diff --git a/src/middleware.ts b/src/middleware.ts
+index e21e85e..33f6770 100644
+--- a/src/middleware.ts
++++ b/src/middleware.ts
+@@ -1,5 +1,6 @@
+-import { get } from "@vercel/edge-config";
++// src/middleware.ts
+ import { type NextRequest, NextResponse } from "next/server";
++
+ export async function middleware(request: NextRequest) {
+ 	const url = request.nextUrl;
+ 
+@@ -31,13 +32,30 @@ export async function middleware(request: NextRequest) {
+ 	// Posthog end ------------------------------------------------------------------------------
+ 
+ 	// Maintenance mode ------------------------------------------------------------------------------
+-	const isInMaintenanceMode = await get("isInMaintenanceMode");
++	// Check for maintenance mode using environment variables
++	// In edge runtime, we need to use process.env directly, not the env.js file
++	let isInMaintenanceMode = false;
++
++	if (process.env.VERCEL_ENV) {
++		// On Vercel, use Edge Config if available
++		try {
++			const { get } = await import("@vercel/edge-config");
++			isInMaintenanceMode = await get("isInMaintenanceMode") || false;
++		} catch (error) {
++			console.warn("Edge Config not available, falling back to env vars:", error);
++			// Fallback to environment variables
++			isInMaintenanceMode = process.env.IS_IN_MAINTENANCE_MODE === "true" || 
++								 process.env.MAINTENANCE_MODE === "true";
++		}
++	} else {
++		// Local development - use environment variables
++		isInMaintenanceMode = process.env.IS_IN_MAINTENANCE_MODE === "true" || 
++							 process.env.MAINTENANCE_MODE === "true";
++	}
+ 
+ 	// If in maintenance mode, point the url pathname to the maintenance page
+ 	if (isInMaintenanceMode && url.pathname === "/") {
+ 		url.pathname = "/maintenance";
+-
+-		// Rewrite to the url
+ 		return NextResponse.rewrite(url);
+ 	}
+ 	// Maintenance mode end ------------------------------------------------------------------------------
+@@ -58,4 +76,4 @@ export const config = {
+ 		 */
+ 		"/((?!api/|_next/|_static/|_vercel|[\\w-]+\\.\\w+).*)",
+ 	],
+-};
++};
+\ No newline at end of file
+diff --git a/src/server/api/routers/jobs.ts b/src/server/api/routers/jobs.ts
+index 5b1a6ec..21b696f 100644
+--- a/src/server/api/routers/jobs.ts
++++ b/src/server/api/routers/jobs.ts
+@@ -1,8 +1,9 @@
++//src/server/api/routers/jobs.ts
+ import { z } from "zod";
+-import { createTRPCRouter, privateProcedure } from "~/server/api/trpc";
++import { createTRPCRouter, privateProcedure, publicProcedure } from "~/server/api/trpc";
+ import { unstable_cache } from "next/cache";
+ import type { JobSchemaRocketJobs } from "../schemas/jobs";
+-import { and, asc, desc, eq, gt, ilike, or, sql, between } from "drizzle-orm";
++import { and, asc, desc, eq, gt, ilike, or, sql, between, isNull } from "drizzle-orm";
+ import {
+ 	generatedCVs,
+ 	jobs,
+@@ -161,15 +162,45 @@ export const jobsRouter = createTRPCRouter({
+ 		.query(async ({ ctx, input }) => {
+ 			const { jobId } = input;
+ 
+-			const generatedCV = await ctx.db.query.generatedCVs.findFirst({
++			console.log("🔍 Searching for CV with jobId:", jobId);
++
++			// Strategy 1: Direct jobId match (works for RocketJobs)
++			let generatedCV = await ctx.db.query.generatedCVs.findFirst({
+ 				where: and(
+ 					eq(generatedCVs.ownerId, ctx.user.id),
+ 					eq(generatedCVs.jobId, jobId),
+ 				),
+ 			});
+-			if (!generatedCV) {
+-				return null;
++
++			if (generatedCV) {
++				console.log("✅ Found CV by direct jobId match");
++				return generatedCV;
+ 			}
++
++			// Strategy 2: Search through CVs with NULL jobId for LinkedIn source ID match
++			console.log("🔍 Searching through CVs with NULL jobId for metadata match...");
++			const nullJobIdCVs = await ctx.db.query.generatedCVs.findMany({
++				where: and(
++					eq(generatedCVs.ownerId, ctx.user.id),
++					isNull(generatedCVs.jobId), // Only CVs with NULL jobId (LinkedIn jobs)
++				),
++			});
++
++			// Search through CVs for LinkedIn source ID match
++			generatedCV = nullJobIdCVs.find(cv => {
++				const cvData = cv.data as any;
++				if (cvData.sourceJobMetadata?.sourceType === "linkedin") {
++					return cvData.sourceJobMetadata.sourceId === jobId;
++				}
++				return false;
++			}) || null;
++
++			if (generatedCV) {
++				console.log("✅ Found CV by metadata search in NULL jobId CVs");
++			} else {
++				console.log("❌ No CV found for jobId:", jobId);
++			}
++
+ 			return generatedCV;
+ 		}),
+ 
+@@ -222,22 +253,64 @@ export const jobsRouter = createTRPCRouter({
+ 			where: eq(generatedCVs.ownerId, ctx.user.id),
+ 			orderBy: [desc(generatedCVs.createdAt)],
+ 		});
+-
+-		// Join with jobs table to get job details
++	
++		// Enhanced logic: Handle both NULL jobIds (LinkedIn) and proper jobIds (RocketJobs)
+ 		const cvWithJobDetails = await Promise.all(
+ 			userGeneratedCVs.map(async (cv) => {
+-				const job = await ctx.db.query.jobs.findFirst({
+-					where: eq(jobs.id, cv.jobId),
+-				});
++				// Check if CV has a jobId (RocketJobs) or is NULL (LinkedIn)
++				if (cv.jobId) {
++					// RocketJobs case - try to find job in database
++					const job = await ctx.db.query.jobs.findFirst({
++						where: eq(jobs.id, cv.jobId),
++					});
++		
++					if (job) {
++						// Job found in database - use database data
++						return {
++							...cv,
++							jobTitle: job.title,
++							companyName: job.companyName,
++							sourceType: 'rocketjobs',
++							isExternal: false,
++						};
++					}
++				}
++
++				// LinkedIn case (NULL jobId) or missing job - extract from CV metadata
++				const cvData = cv.data as any;
++				
++				// Try to get job details from CV data
++				let jobTitle = "Nieznane stanowisko";
++				let companyName = "Nieznana firma";
++				let sourceType = "unknown";
++				let isExternal = true;
++
++				// Check if we have sourceJobMetadata
++				if (cvData.sourceJobMetadata) {
++					const metadata = cvData.sourceJobMetadata;
++					sourceType = metadata.sourceType || "unknown";
++					
++					// For LinkedIn jobs, we can extract from jobDetails
++					if (cvData.jobDetails) {
++						jobTitle = cvData.jobDetails.jobTitle || jobTitle;
++						companyName = cvData.jobDetails.companyName || companyName;
++					}
++				} else if (cvData.jobDetails) {
++					// Fallback to jobDetails if available
++					jobTitle = cvData.jobDetails.jobTitle || jobTitle;
++					companyName = cvData.jobDetails.companyName || companyName;
++				}
+ 
+ 				return {
+ 					...cv,
+-					jobTitle: job?.title || "Nieznane stanowisko",
+-					companyName: job?.companyName || "Nieznana firma",
++					jobTitle,
++					companyName,
++					sourceType,
++					isExternal,
+ 				};
+ 			}),
+ 		);
+-
++	
+ 		return cvWithJobDetails;
+ 	}),
+ 
+@@ -299,11 +372,12 @@ export const jobsRouter = createTRPCRouter({
+ 
+ 			const cvId = uuidv4();
+ 
++			// Note: This function uses NULL jobId for external jobs
+ 			await ctx.db.insert(generatedCVs).values({
+ 				id: cvId,
+ 				data: resumeContent,
+ 				ownerId: ctx.user.id,
+-				jobId,
++				jobId: null, // NULL for external/generated jobs
+ 				createdAt: new Date().toISOString(),
+ 				updatedAt: new Date().toISOString(),
+ 			});
+@@ -339,4 +413,37 @@ export const jobsRouter = createTRPCRouter({
+ 
+ 			return { success: true };
+ 		}),
+-});
++		
++	getJobBySlug: publicProcedure
++		.input(z.object({ slug: z.string() }))
++		.query(async ({ ctx, input }) => {
++			const { slug } = input;
++			
++			const job = await ctx.db.query.jobs.findFirst({
++				where: eq(jobs.slug, slug),
++			});
++
++			if (!job) {
++				throw new Error("Nie znaleziono oferty pracy o podanym slug");
++			}
++
++			// Przekształć dane z bazy do formatu zgodnego z LinkedIn job response
++			return {
++				job_title: job.title,
++				company_name: job.companyName,
++				job_description: "", // RocketJobs nie przechowuje pełnych opisów w bazie
++				job_location: job.city,
++				// Dodatkowe pola z RocketJobs
++				id: job.id,
++				slug: job.slug,
++				title: job.title,
++				companyName: job.companyName,
++				city: job.city,
++				requiredSkills: job.requiredSkills || [],
++				niceToHaveSkills: job.niceToHaveSkills || [],
++				workplaceType: job.workplaceType,
++				experienceLevel: job.experienceLevel,
++				employmentTypes: job.employmentTypes,
++			};
++		}),
++});
+\ No newline at end of file
+diff --git a/src/server/api/routers/linkedinScraper.ts b/src/server/api/routers/linkedinScraper.ts
+index 56aa33b..67ae3af 100644
+--- a/src/server/api/routers/linkedinScraper.ts
++++ b/src/server/api/routers/linkedinScraper.ts
+@@ -6,16 +6,18 @@ import {
+ 	privateProcedure,
+ 	publicProcedure,
+ } from "~/server/api/trpc";
+-import { linkedinProfileResponse } from "../schemas/linkedin";
++import { linkedinProfileResponse, linkedinJobResponse } from "../schemas/linkedin";
+ import { env } from "~/env";
+ import { eq } from "drizzle-orm";
+ import { linkedinCachedProfiles } from "~/server/db/schema.postgres";
+ import { profiles } from "~/server/db/schema.postgres";
+ import { TRPCError } from "@trpc/server";
++
+ const ONE_DAY_IN_SECONDS = 86400;
+ 
+ const fetchLinkedinProfile = async (url: string) => {
+-	console.log("XDDD");
++	console.log("[LinkedIn Profile API] Fetching profile:", url);
++	
+ 	const response = await fetch(
+ 		`${env.LINKEDIN_API_URL}/get-linkedin-profile?linkedin_url=${encodeURIComponent(url)}&include_skills=true&include_certifications=false&include_publications=false&include_honors=false&include_volunteers=false&include_projects=false&include_patents=false&include_courses=false&include_organizations=false&include_profile_status=false&include_company_public_url=false`,
+ 		{
+@@ -28,12 +30,17 @@ const fetchLinkedinProfile = async (url: string) => {
+ 	);
+ 
+ 	if (!response.ok) {
+-		throw new Error(`API request failed with status ${response.status}`);
++		const errorText = await response.text();
++		console.error("[LinkedIn Profile API] Error:", response.status, errorText);
++		throw new Error(`API request failed with status ${response.status}: ${errorText}`);
+ 	}
+ 
+ 	const data = (await response.json()) as {
+ 		data: z.infer<typeof linkedinProfileResponse>;
++		message?: string;
+ 	};
++	
++	console.log("[LinkedIn Profile API] Success:", data.message || "OK");
+ 	const parsedData = linkedinProfileResponse.parse(data.data);
+ 	return parsedData;
+ };
+@@ -49,71 +56,55 @@ const fetchLinkedinProfileByUrlCached = async (url: string) => {
+ const fetchLinkedinJob = async (id: string) => {
+ 	try {
+ 		console.log(`[LinkedIn Job API] Fetching job with ID: ${id}`);
+-
+-		const response = await fetch(
+-			`${env.LINKEDIN_API_URL}/get-job-details?job_url=https://www.linkedin.com/jobs/view/${id}`,
+-			{
+-				method: "GET",
+-				headers: {
+-					"x-rapidapi-host": env.RAPIDAPI_HOST,
+-					"x-rapidapi-key": env.RAPIDAPI_KEY,
+-				},
++		
++		// Clean URL construction
++		const jobUrl = `https://www.linkedin.com/jobs/view/${id}/`;
++		const requestUrl = `${env.LINKEDIN_API_URL}/get-job-details?job_url=${encodeURIComponent(jobUrl)}&include_skills=false&include_hiring_team=false`;
++		
++		console.log(`[LinkedIn Job API] Request URL: ${requestUrl}`);
++
++		const response = await fetch(requestUrl, {
++			method: "GET",
++			headers: {
++				"x-rapidapi-host": env.RAPIDAPI_HOST,
++				"x-rapidapi-key": env.RAPIDAPI_KEY,
+ 			},
+-		);
++		});
+ 
+ 		if (!response.ok) {
+-			console.error(
+-				`[LinkedIn Job API] Request failed with status ${response.status}`,
+-			);
+-			console.error(
+-				`[LinkedIn Job API] Response status text: ${response.statusText}`,
+-			);
+ 			const errorText = await response.text();
++			console.error(`[LinkedIn Job API] Request failed with status ${response.status}`);
++			console.error(`[LinkedIn Job API] Response status text: ${response.statusText}`);
+ 			console.error("[LinkedIn Job API] Error response body:", errorText);
+-			throw new Error(`API request failed with status ${response.status}`);
++			
++			// Specific error handling for subscription issues
++			if (response.status === 403) {
++				throw new Error(`LinkedIn API access denied (403). Check your RapidAPI subscription and key.`);
++			}
++			
++			throw new Error(`API request failed with status ${response.status}: ${errorText}`);
+ 		}
+ 
+ 		const rawData = await response.json();
++		console.log("[LinkedIn Job API] Response received, message:", rawData.message);
+ 
+-		// Debugowanie struktury danych
+-		console.log(
+-			"[LinkedIn Job API] Raw data structure:",
+-			Object.keys(rawData),
+-			"Has data property:",
+-			"data" in rawData,
+-		);
+-
+-		// Sprawdzamy różne możliwe struktury danych
+-		if (rawData.data) {
+-			// Jeśli dane są w polu data, wyciągamy je
+-			console.log("[LinkedIn Job API] Data found in rawData.data");
+-			console.log("[LinkedIn Job API] Job title:", rawData.data.job_title);
+-			console.log(
+-				"[LinkedIn Job API] Company name:",
+-				rawData.data.company_name,
+-			);
+-
+-			// Możliwe, że potrzebujemy przekształcić dane do oczekiwanego formatu
+-			return {
+-				...rawData.data,
+-				job_title: rawData.data.job_title || "Brak tytułu",
+-				company_name: rawData.data.company_name || "Brak nazwy firmy",
+-				job_description: rawData.data.job_description || "",
+-			};
++		// Parse the response structure
++		if (!rawData.data) {
++			console.error("[LinkedIn Job API] No data field in response:", Object.keys(rawData));
++			throw new Error("Invalid API response: missing data field");
+ 		}
+-		// Jika dane są bezpośrednio w głównym obiekcie
+-		console.log("[LinkedIn Job API] Direct data structure");
+-		console.log("[LinkedIn Job API] Job title:", rawData.job_title);
+-		console.log("[LinkedIn Job API] Company name:", rawData.company_name);
+-
+-		return {
+-			...rawData,
+-			job_title: rawData.job_title || "Brak tytułu",
+-			company_name: rawData.company_name || "Brak nazwy firmy",
+-			job_description: rawData.job_description || "",
+-		};
++
++		const jobData = rawData.data;
++		console.log("[LinkedIn Job API] Job title:", jobData.job_title);
++		console.log("[LinkedIn Job API] Company name:", jobData.company_name);
++		console.log("[LinkedIn Job API] Job description length:", jobData.job_description?.length || 0);
++
++		// Parse and validate with schema
++		const parsedJob = linkedinJobResponse.parse(jobData);
++		return parsedJob;
++
+ 	} catch (error) {
+-		console.error("[LinkedIn Job API] Error in getLinkedinJobByUrl:", error);
++		console.error("[LinkedIn Job API] Error in fetchLinkedinJob:", error);
+ 		throw error;
+ 	}
+ };
+@@ -138,6 +129,7 @@ export const linkedinScraperRouter = createTRPCRouter({
+ 				{ revalidate: ONE_DAY_IN_SECONDS },
+ 			)();
+ 		}),
++		
+ 	getLinkedinProfileByCurrentUser: privateProcedure.query(async ({ ctx }) => {
+ 		const linkedinProfile = await ctx.db.query.linkedinCachedProfiles.findFirst(
+ 			{
+@@ -151,11 +143,13 @@ export const linkedinScraperRouter = createTRPCRouter({
+ 
+ 		return linkedinProfile;
+ 	}),
++	
+ 	updateLinkedinProfileByCurrentUser: privateProcedure
+ 		.input(z.object({ url: z.string() }))
+ 		.mutation(async ({ ctx, input }) => {
+ 			const linkedinProfile = await fetchLinkedinProfileByUrlCached(input.url);
+ 			console.log({ linkedinProfile });
++			
+ 			if (!linkedinProfile) {
+ 				throw new TRPCError({
+ 					code: "BAD_REQUEST",
+@@ -182,4 +176,4 @@ export const linkedinScraperRouter = createTRPCRouter({
+ 
+ 			return null;
+ 		}),
+-});
++});
+\ No newline at end of file
+diff --git a/src/server/api/routers/resume.ts b/src/server/api/routers/resume.ts
+index d3bb89f..6dd5a83 100644
+--- a/src/server/api/routers/resume.ts
++++ b/src/server/api/routers/resume.ts
+@@ -1,6 +1,10 @@
+ //src/server/api/routers/resume.ts
++import { v4 as uuidv4 } from "uuid";
++import { eq } from "drizzle-orm";
++import { linkedinCachedProfiles, jobs, generatedCVs } from "~/server/db/schema.postgres";
++import { env } from "~/env";
++import { createTRPCRouter, publicProcedure, privateProcedure } from "~/server/api/trpc";
+ import { z } from "zod";
+-import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
+ import {
+ 	type linkedinJobResponse,
+ 	type linkedinProfileResponse,
+@@ -1002,4 +1006,294 @@ export const resumeRouter = createTRPCRouter({
+ 			...config,
+ 		}));
+ 	}),
+-});
++	generateResumeFromUrl: privateProcedure
++	.input(
++		z.object({
++			jobUrl: z.string(),
++			jobType: z.enum(["linkedin", "rocketjobs"]),
++			userContactData: z
++				.object({
++					email: z.string().optional(),
++					phone: z.string().optional(),
++					location: z.string().optional(),
++				})
++				.optional(),
++		}),
++	)
++	.mutation(async ({ input, ctx }) => {
++		const { jobUrl, jobType, userContactData } = input;
++
++		// Pobierz profil LinkedIn użytkownika
++		const linkedinProfile = await ctx.db.query.linkedinCachedProfiles.findFirst({
++			where: eq(linkedinCachedProfiles.ownerId, ctx.user.id),
++		});
++
++		if (!linkedinProfile) {
++			throw new Error("Nie znaleziono profilu LinkedIn. Uzupełnij swój profil LinkedIn w pierwszej kolejności.");
++		}
++
++		let jobData: any;
++
++		// Pobierz dane oferty w zależności od typu
++		if (jobType === "linkedin") {
++			// Wyciągnij ID z URL LinkedIn
++			const idMatch = jobUrl.match(/\/jobs\/view\/(\d+)/);
++			if (!idMatch?.[1]) {
++				throw new Error("Nieprawidłowy format URL LinkedIn");
++			}
++
++			// Użyj istniejący endpoint do pobierania LinkedIn job
++			const response = await fetch(
++				`${env.LINKEDIN_API_URL}/get-job-details?job_url=${encodeURIComponent(jobUrl)}`,
++				{
++					method: "GET",
++					headers: {
++						"x-rapidapi-host": env.RAPIDAPI_HOST,
++						"x-rapidapi-key": env.RAPIDAPI_KEY,
++					},
++				}
++			);
++
++			if (!response.ok) {
++				throw new Error(`Nie udało się pobrać danych oferty LinkedIn: ${response.status}`);
++			}
++
++			const rawData = await response.json();
++			jobData = rawData.data || rawData;
++		} else if (jobType === "rocketjobs") {
++			// Wyciągnij slug z URL RocketJobs
++			const slugMatch = jobUrl.match(/\/oferta-pracy\/([^/?]+)/);
++			if (!slugMatch?.[1]) {
++				throw new Error("Nieprawidłowy format URL RocketJobs");
++			}
++
++			// Pobierz dane z bazy danych
++			const job = await ctx.db.query.jobs.findFirst({
++				where: eq(jobs.slug, slugMatch[1]),
++			});
++
++			if (!job) {
++				throw new Error("Nie znaleziono oferty pracy w bazie danych");
++			}
++
++			// Przekształć dane RocketJobs do formatu LinkedIn
++			jobData = {
++				job_title: job.title,
++				company_name: job.companyName,
++				job_description: `Stanowisko: ${job.title}\n\nFirma: ${job.companyName}\n\nLokalizacja: ${job.city}\n\nWymagane umiejętności: ${(job.requiredSkills || []).join(", ")}\n\nMile widziane umiejętności: ${(job.niceToHaveSkills || []).join(", ")}\n\nRodzaj pracy: ${job.workplaceType}\n\nPoziom doświadczenia: ${job.experienceLevel}`,
++				job_location: job.city,
++				company_description: `Firma zatrudniająca na stanowisko ${job.title}`,
++			};
++		} else {
++			throw new Error("Nieobsługiwany typ oferty pracy");
++		}
++
++		// Sprawdź czy dane oferty zostały pobrane
++		if (!jobData) {
++			throw new Error("Nie udało się pobrać danych oferty pracy");
++		}
++
++		// Ustaw domyślne wartości jeśli brakuje danych
++		const normalizedJobData = {
++			job_title: jobData.job_title || jobData.title || "Stanowisko pracy",
++			company_name: jobData.company_name || jobData.companyName || "Firma",
++			job_description: jobData.job_description || "",
++			job_location: jobData.job_location || jobData.city || "",
++			company_description: jobData.company_description || "",
++		};
++
++		console.log("Znormalizowane dane oferty:", normalizedJobData);
++
++		// Wygeneruj CV używając istniejącej logiki
++		const resumeContent = await generateResumeContent({
++			profile: linkedinProfile.profileData as z.infer<typeof linkedinProfileResponse>,
++			job: normalizedJobData as z.infer<typeof linkedinJobResponse>,
++			model: "google-gemini-2.0-flash",
++			userContactData,
++		});
++
++		if (!resumeContent) {
++			throw new Error("Nie udało się wygenerować treści CV");
++		}
++
++		// Zwróć wygenerowane CV
++		return {
++			content: resumeContent,
++			modelUsed: {
++				id: "google-gemini-2.0-flash",
++				...AI_MODELS["google-gemini-2.0-flash"],
++			},
++			jobDetails: {
++				jobTitle: normalizedJobData.job_title,
++				companyName: normalizedJobData.company_name,
++			},
++		};
++	}),
++	generateResumeFromUrlAndSave: privateProcedure
++	.input(
++		z.object({
++			jobUrl: z.string(),
++			jobType: z.enum(["linkedin", "rocketjobs"]),
++			userContactData: z
++				.object({
++					email: z.string().optional(),
++					phone: z.string().optional(),
++					location: z.string().optional(),
++				})
++				.optional(),
++		}),
++	)
++	.mutation(async ({ input, ctx }) => {
++		const { jobUrl, jobType, userContactData } = input;
++
++		// Pobierz profil LinkedIn użytkownika
++		const linkedinProfile = await ctx.db.query.linkedinCachedProfiles.findFirst({
++			where: eq(linkedinCachedProfiles.ownerId, ctx.user.id),
++		});
++
++		if (!linkedinProfile) {
++			throw new Error("Nie znaleziono profilu LinkedIn. Uzupełnij swój profil LinkedIn w pierwszej kolejności.");
++		}
++
++		let jobData: any;
++		let jobMetadata: {
++			sourceType: "linkedin" | "rocketjobs";
++			sourceId: string;
++			sourceUrl: string;
++		};
++
++		// Pobierz dane oferty w zależności od typu
++		if (jobType === "linkedin") {
++			// Wyciągnij ID z URL LinkedIn
++			const idMatch = jobUrl.match(/\/jobs\/view\/(\d+)/);
++			if (!idMatch?.[1]) {
++				throw new Error("Nieprawidłowy format URL LinkedIn");
++			}
++
++			const linkedinJobId = idMatch[1];
++			jobMetadata = {
++				sourceType: "linkedin",
++				sourceId: linkedinJobId,
++				sourceUrl: jobUrl,
++			};
++
++			// Użyj ENV variables dla LinkedIn API (zgodnie z linkedinScraper.ts)
++			const cleanJobUrl = `https://www.linkedin.com/jobs/view/${linkedinJobId}/`;
++			const requestUrl = `${env.LINKEDIN_API_URL}/get-job-details?job_url=${encodeURIComponent(cleanJobUrl)}&include_skills=false&include_hiring_team=false`;
++			
++			const response = await fetch(requestUrl, {
++				method: "GET",
++				headers: {
++					"x-rapidapi-host": env.RAPIDAPI_HOST,
++					"x-rapidapi-key": env.RAPIDAPI_KEY,
++				},
++			});
++
++			if (!response.ok) {
++				const errorText = await response.text();
++				throw new Error(`Nie udało się pobrać danych oferty LinkedIn: ${response.status} - ${errorText}`);
++			}
++
++			const rawData = await response.json();
++			jobData = rawData.data || rawData;
++		} else if (jobType === "rocketjobs") {
++			// Wyciągnij slug z URL RocketJobs
++			const slugMatch = jobUrl.match(/\/oferta-pracy\/([^/?]+)/);
++			if (!slugMatch?.[1]) {
++				throw new Error("Nieprawidłowy format URL RocketJobs");
++			}
++
++			// Pobierz dane z bazy danych
++			const job = await ctx.db.query.jobs.findFirst({
++				where: eq(jobs.slug, slugMatch[1]),
++			});
++
++			if (!job) {
++				throw new Error("Nie znaleziono oferty pracy w bazie danych");
++			}
++
++			jobMetadata = {
++				sourceType: "rocketjobs",
++				sourceId: job.id,
++				sourceUrl: jobUrl,
++			};
++
++			// Przekształć dane RocketJobs do formatu LinkedIn
++			jobData = {
++				job_title: job.title,
++				company_name: job.companyName,
++				job_description: `Stanowisko: ${job.title}\n\nFirma: ${job.companyName}\n\nLokalizacja: ${job.city}\n\nWymagane umiejętności: ${(job.requiredSkills || []).join(", ")}\n\nMile widziane umiejętności: ${(job.niceToHaveSkills || []).join(", ")}\n\nRodzaj pracy: ${job.workplaceType}\n\nPoziom doświadczenia: ${job.experienceLevel}`,
++				job_location: job.city,
++				company_description: `Firma zatrudniająca na stanowisko ${job.title}`,
++			};
++		} else {
++			throw new Error("Nieobsługiwany typ oferty pracy");
++		}
++
++		// Sprawdź czy dane oferty zostały pobrane
++		if (!jobData) {
++			throw new Error("Nie udało się pobrać danych oferty pracy");
++		}
++
++		// Ustaw domyślne wartości jeśli brakuje danych
++		const normalizedJobData = {
++			job_title: jobData.job_title || jobData.title || "Stanowisko pracy",
++			company_name: jobData.company_name || jobData.companyName || "Firma",
++			job_description: jobData.job_description || "",
++			job_location: jobData.job_location || jobData.city || "",
++			company_description: jobData.company_description || "",
++		};
++
++		console.log("🔥 Znormalizowane dane oferty:", normalizedJobData);
++
++		// Wygeneruj CV używając istniejącej logiki
++		const resumeContent = await generateResumeContent({
++			profile: linkedinProfile.profileData as z.infer<typeof linkedinProfileResponse>,
++			job: normalizedJobData as z.infer<typeof linkedinJobResponse>,
++			model: "google-gemini-2.0-flash",
++			userContactData,
++		});
++
++		if (!resumeContent) {
++			throw new Error("Nie udało się wygenerować treści CV");
++		}
++
++		console.log("🎉 CV wygenerowane, zapisuję do bazy danych...");
++
++		// SIMPLE FIX: Use NULL jobId for LinkedIn jobs, actual jobId for RocketJobs
++		const dbJobId = jobType === "linkedin" ? null : jobMetadata.sourceId;
++		
++		const cvId = uuidv4();
++		
++		// Store metadata about the source job in the data field
++		const cvDataWithMetadata = {
++			...resumeContent,
++			sourceJobMetadata: jobMetadata, // Add metadata about source
++		};
++		
++		// CHANGED: jobId can now be null for LinkedIn jobs
++		await ctx.db.insert(generatedCVs).values({
++			id: cvId,
++			data: cvDataWithMetadata,
++			ownerId: ctx.user.id,
++			jobId: dbJobId, // NULL for LinkedIn, UUID for RocketJobs
++			createdAt: new Date().toISOString(),
++			updatedAt: new Date().toISOString(),
++		});
++
++		console.log("✅ CV zapisane w bazie danych z ID:", cvId);
++
++		// Zwróć dane podobnie do generateCvAndSave
++		return {
++			id: cvId,
++			data: cvDataWithMetadata,
++			jobTitle: normalizedJobData.job_title,
++			companyName: normalizedJobData.company_name,
++			createdAt: new Date().toISOString(),
++			modelUsed: {
++				id: "google-gemini-2.0-flash",
++				...AI_MODELS["google-gemini-2.0-flash"],
++			},
++		};
++	}),
++});
+\ No newline at end of file
+diff --git a/src/server/api/schemas/jobs.ts b/src/server/api/schemas/jobs.ts
+index 78b6e92..9d86303 100644
+--- a/src/server/api/schemas/jobs.ts
++++ b/src/server/api/schemas/jobs.ts
+@@ -1,3 +1,4 @@
++//src/server/api/schemas/jobs.ts
+ import { z } from "zod";
+ // curl --location 'https://api.rocketjobs.pl/v2/user-panel/offers/active'
+ export const JobSchemaRocketJobs = z.object({
+diff --git a/src/server/api/schemas/linkedin.ts b/src/server/api/schemas/linkedin.ts
+index 5f7a926..3541a5c 100644
+--- a/src/server/api/schemas/linkedin.ts
++++ b/src/server/api/schemas/linkedin.ts
+@@ -17,13 +17,14 @@ export const linkedinJobResponse = z
+ 		expired: z.string().optional(),
+ 		follower_count: z.number().optional(),
+ 		hiring_team: z.record(z.unknown()).optional(),
+-		hq_address_line1: z.string().optional(),
+-		hq_address_line2: z.string().optional(),
++		// Fixed: These fields can be null in the API response
++		hq_address_line1: z.string().nullable().optional(),
++		hq_address_line2: z.string().nullable().optional(),
+ 		hq_city: z.string().optional(),
+ 		hq_country: z.string().optional(),
+ 		hq_full_address: z.string().optional(),
+-		hq_postalcode: z.string().optional(),
+-		hq_region: z.string().optional(),
++		hq_postalcode: z.string().nullable().optional(),
++		hq_region: z.string().nullable().optional(),
+ 		industries: z.array(z.string()).optional(),
+ 		job_description: z.string().optional().default(""),
+ 		job_functions: z.array(z.unknown()).optional(),
+@@ -69,6 +70,12 @@ export const linkedinJobResponse = z
+ 		return data;
+ 	});
+ 
++// Schema dla języka - obsługuje strukturę {name: string, proficiency: string}
++const languageSchema = z.object({
++	name: z.string().default(""),
++	proficiency: z.string().default("")
++});
++
+ export const linkedinProfileResponse = z.object({
+ 	about: z.string().nullable().optional().default(""),
+ 	city: z.string().nullable().optional().default(""),
+@@ -135,7 +142,8 @@ export const linkedinProfileResponse = z.object({
+ 	hq_country: z.string().nullable().optional().default(""),
+ 	hq_region: z.string().nullable().optional().default(""),
+ 	job_title: z.string().default(""),
+-	languages: z.array(z.string()).default([]),
++	// FIX: languages jako array obiektów zamiast stringów
++	languages: z.array(languageSchema).default([]),
+ 	last_name: z.string().default(""),
+ 	linkedin_url: z.string().default(""),
+ 	location: z.string().default(""),
+@@ -147,4 +155,4 @@ export const linkedinProfileResponse = z.object({
+ 	skills: z.string().default(""),
+ 	state: z.string().default(""),
+ 	urn: z.string().default(""),
+-});
++});
+\ No newline at end of file
+diff --git a/src/server/api/utils/resumeRocketJobsUtils.ts b/src/server/api/utils/resumeRocketJobsUtils.ts
+index 22b30a7..e63d053 100644
+--- a/src/server/api/utils/resumeRocketJobsUtils.ts
++++ b/src/server/api/utils/resumeRocketJobsUtils.ts
+@@ -1,3 +1,4 @@
++//src/server/api/utils/resumeRocketJobsUtils.ts
+ import type { jobs, linkedinCachedProfiles } from "~/server/db/schema.postgres";
+ 
+ import { z } from "zod";
+diff --git a/src/server/db/schema.postgres.ts b/src/server/db/schema.postgres.ts
+index d881a6a..1db14c2 100644
+--- a/src/server/db/schema.postgres.ts
++++ b/src/server/db/schema.postgres.ts
+@@ -1,3 +1,4 @@
++//src/server/db/schema.postgres.ts
+ // Example model schema from the Drizzle docs
+ // https://orm.drizzle.team/docs/sql-schema-declaration
+ 
+@@ -152,9 +153,8 @@ export const generatedCVs = pgTable("generated_cvs", {
+ 		.notNull()
+ 		.default(sql`now()`)
+ 		.$onUpdate(() => sql`now()`),
+-	jobId: uuid("job_id")
+-		.notNull()
+-		.references(() => jobs.id),
++	// CHANGED: jobId is now nullable - allows external jobs without creating job records
++	jobId: uuid("job_id"), // Removed .notNull() - now nullable!
+ 	ownerId: uuid("owner_id")
+ 		.notNull()
+ 		.references(() => profiles.id),
+@@ -168,4 +168,9 @@ export const generatedCVsRelations = relations(generatedCVs, ({ one }) => ({
+ 		fields: [generatedCVs.ownerId],
+ 		references: [profiles.id],
+ 	}),
+-}));
++	// CHANGED: Job relation is now optional since jobId can be null
++	job: one(jobs, {
++		fields: [generatedCVs.jobId],
++		references: [jobs.id],
++	}),
++}));
+\ No newline at end of file
+diff --git a/src/server/db/schema.sqlite.ts b/src/server/db/schema.sqlite.ts
+index 8d8277a..f64bf3a 100644
+--- a/src/server/db/schema.sqlite.ts
++++ b/src/server/db/schema.sqlite.ts
+@@ -1,3 +1,4 @@
++//src/server/db/schema.sqlite.ts
+ // Example model schema from the Drizzle docs
+ // https://orm.drizzle.team/docs/sql-schema-declaration
+ 
+diff --git a/src/server/supabase/supabaseClient.ts b/src/server/supabase/supabaseClient.ts
+index ad13b8b..9366a6d 100644
+--- a/src/server/supabase/supabaseClient.ts
++++ b/src/server/supabase/supabaseClient.ts
+@@ -1,3 +1,4 @@
++//src/server/supabase/supabaseClient.ts
+ import { createClient } from "@supabase/supabase-js";
+ import { env } from "~/env";
+ import type { Database } from "./supabaseTypes";
+diff --git a/src/server/supabase/supabaseTypes.ts b/src/server/supabase/supabaseTypes.ts
+index a5fa58c..f75fc48 100644
+--- a/src/server/supabase/supabaseTypes.ts
++++ b/src/server/supabase/supabaseTypes.ts
+@@ -1,3 +1,4 @@
++//src/server/supabase/supabaseTypes.ts
+ export type Json =
+   | string
+   | number
+-- 
+2.39.5 (Apple Git-154)
+

@@ -1,0 +1,1 @@
+ALTER TABLE "generated_cvs" ADD COLUMN "did_user_like_cv" boolean;

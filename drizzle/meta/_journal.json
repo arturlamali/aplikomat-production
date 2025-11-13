@@ -1,0 +1,55 @@
+{
+  "version": "7",
+  "dialect": "postgres",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1743863941674,
+      "tag": "0000_lean_madelyne_pryor",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1743964288311,
+      "tag": "0001_fixed_archangel",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1743966269099,
+      "tag": "0002_cuddly_dragon_lord",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1744026917146,
+      "tag": "0003_glossy_guardian",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1744042212609,
+      "tag": "0004_sparkling_human_torch",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1744373985207,
+      "tag": "0005_rare_jocasta",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1744385630173,
+      "tag": "0006_cuddly_night_thrasher",
+      "breakpoints": true
+    }
+  ]
+}

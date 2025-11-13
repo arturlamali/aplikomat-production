@@ -119,8 +119,6 @@ const generateExperienceSection = async ({
 		// Zapisujemy nazwę firmy, do której aplikujemy, aby chronić przed nadpisaniem
 		const targetCompanyName = job.companyName || "";
 		const targetJobTitle = job.title || "";
-		console.log(`Firma docelowa (aplikacja): ${targetCompanyName}`);
-		console.log(`Stanowisko docelowe (aplikacja): ${targetJobTitle}`);
 
 		const experiences = await Promise.all(
 			profile.experiences.map(async (exp, index) => {
@@ -130,7 +128,6 @@ const generateExperienceSection = async ({
 					const isCurrent =
 						exp.is_current || exp.date_range?.includes("Present") || false;
 
-					console.log(`[${index}] Przetwarzanie doświadczenia:`, {
 						title: originalTitle,
 						company: originalCompanyName,
 						isCurrent: isCurrent,
@@ -149,7 +146,6 @@ const generateExperienceSection = async ({
 							? `${exp.end_year}-${String(exp.end_month).padStart(2, "0")}`
 							: formatDateFromLinkedIn(exp.date_range || "", true, isCurrent);
 
-					console.log(`[${index}] Przetworzone daty:`, {
 						startDate: formattedStartDate,
 						endDate: formattedEndDate,
 					});
@@ -197,7 +193,6 @@ FORMAT: Generate valid JSON object following experienceEntrySchema.`,
 
 					// 1. Sprawdź i przywróć oryginalną nazwę firmy, jeśli została zmieniona
 					if (correctedObject.company !== originalCompanyName) {
-						console.warn(
 							`[${index}] KOREKTA: AI zmieniło nazwę firmy z "${originalCompanyName}" na "${correctedObject.company}". Przywracanie oryginalnej nazwy.`,
 						);
 						correctedObject.company = originalCompanyName;
@@ -224,7 +219,6 @@ FORMAT: Generate valid JSON object following experienceEntrySchema.`,
 					);
 
 					if (isGenericTitle) {
-						console.warn(
 							`[${index}] KOREKTA: AI zmieniło tytuł z "${originalTitle}" na generyczny "${correctedObject.title}". Przywracanie oryginalnego tytułu.`,
 						);
 						// Spróbuj zachować polskie znaki, ale przywróć oryginalny tytuł
@@ -233,7 +227,6 @@ FORMAT: Generate valid JSON object following experienceEntrySchema.`,
 
 					// 3. Sprawdź daty - upewnij się, że data końcowa jest null dla aktualnych pozycji
 					if (isCurrent && correctedObject.endDate !== null) {
-						console.warn(
 							`[${index}] KOREKTA: AI ustawiło datę końcową "${correctedObject.endDate}" dla aktualnej pozycji. Ustawianie na null.`,
 						);
 						correctedObject.endDate = null;
@@ -244,7 +237,6 @@ FORMAT: Generate valid JSON object following experienceEntrySchema.`,
 						formattedStartDate &&
 						correctedObject.startDate !== formattedStartDate
 					) {
-						console.warn(
 							`[${index}] KOREKTA: AI zmieniło datę początkową z "${formattedStartDate}" na "${correctedObject.startDate}". Przywracanie oryginalnej daty.`,
 						);
 						correctedObject.startDate = formattedStartDate;
@@ -256,14 +248,12 @@ FORMAT: Generate valid JSON object following experienceEntrySchema.`,
 						formattedEndDate &&
 						correctedObject.endDate !== formattedEndDate
 					) {
-						console.warn(
 							`[${index}] KOREKTA: AI zmieniło datę końcową z "${formattedEndDate}" na "${correctedObject.endDate}". Przywracanie oryginalnej daty.`,
 						);
 						correctedObject.endDate = formattedEndDate;
 					}
 
 					// Logowanie skorygowanych danych
-					console.log(`[${index}] Dane po korekcji:`, {
 						title: correctedObject.title,
 						company: correctedObject.company,
 						startDate: correctedObject.startDate,
@@ -272,7 +262,6 @@ FORMAT: Generate valid JSON object following experienceEntrySchema.`,
 
 					return correctedObject;
 				} catch (error) {
-					console.error(
 						`Error generating experience for ${exp.title} at ${exp.company}:`,
 						error,
 					);
@@ -284,7 +273,6 @@ FORMAT: Generate valid JSON object following experienceEntrySchema.`,
 		);
 		return experiences;
 	} catch (error) {
-		console.error("Error in generateExperienceSection:", error);
 		throw new Error(
 			"Wystąpił błąd podczas generowania sekcji doświadczenia. Spróbuj ponownie później.",
 		);
@@ -300,7 +288,6 @@ const generateSkillsSection = async ({
 	job: JobSchema;
 	apiKey: string;
 }) => {
-	console.log("GENERATING SKILLS SECTION");
 	try {
 		// Extract keywords (z zabezpieczeniem przed undefined)
 		const keywords = job.requiredSkills?.join(", ");
@@ -315,7 +302,6 @@ const generateSkillsSection = async ({
 			);
 		}
 
-		console.log(
 			"Extracted skills from profile:",
 			profileSkills.slice(0, 10),
 			"...",
@@ -354,7 +340,6 @@ EXAMPLE OUTPUT:
 		});
 		return object.skills;
 	} catch (error) {
-		console.error("Error in generateSkillsSection:", error);
 		throw new Error(
 			"Wystąpił błąd podczas generowania sekcji umiejętności. Spróbuj ponownie później.",
 		);
@@ -421,7 +406,6 @@ FORMAT: Generate valid JSON with the basics object. Include all fields.`,
 		const basics = { ...object.basics };
 
 		if (basics.name !== `${profile.first_name} ${profile.last_name}`) {
-			console.warn(
 				`KOREKTA: AI zmieniło imię i nazwisko z "${profile.first_name} ${profile.last_name}" na "${basics.name}". Przywracanie oryginalnego.`,
 			);
 			basics.name = `${profile.first_name} ${profile.last_name}`;
@@ -429,17 +413,14 @@ FORMAT: Generate valid JSON with the basics object. Include all fields.`,
 
 		if (userContactData?.email && userContactData.email.trim() !== "") {
 			basics.email = userContactData.email;
-			console.log("Zastosowano niestandardowy email:", userContactData.email);
 		}
 
 		if (userContactData?.phone && userContactData.phone.trim() !== "") {
 			basics.phone = userContactData.phone;
-			console.log("Zastosowano niestandardowy telefon:", userContactData.phone);
 		}
 
 		if (userContactData?.location && userContactData.location.trim() !== "") {
 			basics.location = userContactData.location;
-			console.log(
 				"Zastosowano niestandardową lokalizację:",
 				userContactData.location,
 			);
@@ -447,14 +428,11 @@ FORMAT: Generate valid JSON with the basics object. Include all fields.`,
 
 		if (!basics.linkedin && profile.linkedin_url) {
 			basics.linkedin = profile.linkedin_url;
-			console.log("Dodano brakujący URL LinkedIn");
 		}
 
-		console.log("Finalne dane podstawowe po aktualizacji:", basics);
 
 		return basics;
 	} catch (error) {
-		console.error("Error in generateBasicsSection:", error);
 		throw new Error(
 			"Wystąpił błąd podczas generowania podstawowych informacji. Spróbuj ponownie później.",
 		);
@@ -476,7 +454,6 @@ const generateInterestsSection = async ({
 				/jazz|muzyka|music|kawa|coffee|lego|gry|games|sport|podróże|travel|książki|books|fotografia|photography|programowanie|coding|technology|projektowanie|design/gi,
 			) || [];
 
-		console.log(
 			"Potencjalne zainteresowania wyciągnięte z profilu:",
 			potentialInterests,
 		);
@@ -511,7 +488,6 @@ FORMAT: Return valid JSON with array of string interests.`,
 		});
 		return object.interests;
 	} catch (error) {
-		console.error("Error in generateInterestsSection:", error);
 		throw new Error(
 			"Wystąpił błąd podczas generowania sekcji zainteresowań. Spróbuj ponownie później.",
 		);
@@ -523,18 +499,15 @@ export const generateLanguagesSection = async ({
 }: {
 	profile: ProfileType;
 }) => {
-	console.log("GENERATING LANGUAGES SECTION");
 	try {
 		// Language parsing logic remains the same
 		if (
 			!profile.languages ||
 			(Array.isArray(profile.languages) && profile.languages.length === 0)
 		) {
-			console.log("Brak danych o językach w profilu");
 			return [];
 		}
 
-		console.log(
 			"Surowe dane o językach:",
 			JSON.stringify(profile.languages, null, 2),
 		);
@@ -544,21 +517,18 @@ export const generateLanguagesSection = async ({
 		const languagesData = profile.languages as LanguagesData;
 
 		if (typeof languagesData === "string") {
-			console.log("Języki są w formacie string:", languagesData);
 			const langArray = languagesData.split(",");
 			languages = langArray.map((lang: string) => ({
 				language: lang.trim(),
 				fluency: "Biegły", // Default fluency for string format
 			}));
 		} else if (Array.isArray(languagesData)) {
-			console.log(
 				"Języki są w formacie tablicy, długość:",
 				languagesData.length,
 			);
 
 			languages = languagesData
 				.map((lang, index): { language: string; fluency: string } | null => {
-					console.log(`Analizuję język [${index}]:`, typeof lang, lang);
 
 					if (typeof lang === "string") {
 						return {
@@ -640,10 +610,8 @@ export const generateLanguagesSection = async ({
 				); // Type guard filter
 		}
 
-		console.log("Przetworzone języki:", languages);
 		return languages;
 	} catch (error) {
-		console.error("Error in generateLanguagesSection:", error);
 		return []; // Return empty array on error
 	}
 };
@@ -654,7 +622,6 @@ const validateGeneratedResume = (
 	profile: ProfileType,
 	job: JobSchema,
 ) => {
-	console.log("VALIDATING GENERATED RESUME");
 
 	const targetCompany = job.companyName;
 	let issues = 0;
@@ -670,7 +637,6 @@ const validateGeneratedResume = (
 				exp.company === targetCompany &&
 				originalExp.company !== targetCompany
 			) {
-				console.error(
 					`BŁĄD KRYTYCZNY: Firma ${targetCompany} pojawiła się w doświadczeniu na pozycji ${index}, choć powinna być ${originalExp.company}`,
 				);
 				exp.company = originalExp.company;
@@ -698,7 +664,6 @@ const validateGeneratedResume = (
 			);
 
 			if (isGenericTitle) {
-				console.error(
 					`BŁĄD: Tytuł stanowiska w doświadczeniu ${index} został zmieniony na generyczny: ${exp.title}`,
 				);
 				exp.title = originalExp.title;
@@ -711,7 +676,6 @@ const validateGeneratedResume = (
 				originalExp.date_range?.includes("Present") ||
 				false;
 			if (isCurrent && exp.endDate !== null) {
-				console.error(
 					`BŁĄD: Data końcowa dla aktualnej pozycji ${index} powinna być null, ale jest: ${exp.endDate}`,
 				);
 				exp.endDate = null;
@@ -720,7 +684,6 @@ const validateGeneratedResume = (
 		});
 	}
 
-	console.log(
 		`Walidacja zakończona, znaleziono ${issues} problemów, które zostały naprawione.`,
 	);
 	return { ...resume, validationIssues: issues };

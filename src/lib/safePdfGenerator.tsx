@@ -22,7 +22,6 @@ const attemptPdfGeneration = async (
   companyName?: string,
   timeout: number = 30000
 ): Promise<Blob> => {
-  console.log(`🔄 Attempting PDF generation with timeout: ${timeout}ms`);
   
   const pdfPromise = pdf(
     <ResumePDF data={data} jobTitle={jobTitle} companyName={companyName} />
@@ -34,10 +33,8 @@ const attemptPdfGeneration = async (
 
   try {
     const result = await Promise.race([pdfPromise, timeoutPromise]);
-    console.log(`✅ PDF generated successfully, size: ${result.size} bytes`);
     return result;
   } catch (error: any) {
-    console.log(`❌ PDF generation failed: ${error.message}`);
     
     // ✅ Enhanced error classification
     if (error.message?.includes('Unknown font format')) {
@@ -60,7 +57,6 @@ const generateSimplifiedPdf = async (
   jobTitle?: string,
   companyName?: string
 ): Promise<Blob> => {
-  console.log('🔄 Trying simplified PDF generation...');
   
   // Create simplified version - limit quantity, not modify content
   const simplifiedData: z.infer<typeof resumeSchema> = {
@@ -104,7 +100,6 @@ const generateMinimalPdf = async (
   jobTitle?: string,
   companyName?: string
 ): Promise<Blob> => {
-  console.log('🔄 Trying minimal PDF generation...');
   
   const minimalData: z.infer<typeof resumeSchema> = {
     basics: {
@@ -140,8 +135,6 @@ export const generateSafePdf = async (
   jobTitle?: string,
   companyName?: string
 ): Promise<SafePdfResult> => {
-  console.log('🚀 Starting safe PDF generation...');
-  console.log('📊 CV data preview:', {
     name: data.basics?.name,
     experienceCount: data.experience?.length || 0,
     language: data.metadata?.language || 'unknown'
@@ -151,71 +144,51 @@ export const generateSafePdf = async (
 
   // ✅ ATTEMPT 1: Normal generation
   try {
-    console.log('📄 Attempt 1: Normal PDF generation');
     const blob = await attemptPdfGeneration(data, jobTitle, companyName);
-    console.log('✅ Normal PDF generated successfully');
     return { success: true, blob, method: 'normal' };
   } catch (error: any) {
     lastError = error.message;
-    console.warn('⚠️ Attempt 1 failed:', error.message);
     
     if (error.message?.includes('FONT_ERROR')) {
-      console.log('🔍 Font-related error detected, trying fallbacks...');
     } else if (error.message?.includes('TIMEOUT_ERROR')) {
-      console.log('⏱️ Timeout error detected, trying with longer timeout...');
     } else if (error.message?.includes('NETWORK_ERROR')) {
-      console.log('🌐 Network error detected, fonts may not be loading...');
     }
   }
 
   // ✅ ATTEMPT 2: Retry after delay with longer timeout
   try {
-    console.log('📄 Attempt 2: Retry with delay and longer timeout');
     await new Promise(resolve => setTimeout(resolve, 2000)); // Longer delay
     const blob = await attemptPdfGeneration(data, jobTitle, companyName, 45000); // Longer timeout
-    console.log('✅ Retry PDF generated successfully');
     return { success: true, blob, method: 'retry' };
   } catch (error: any) {
     lastError = error.message;
-    console.warn('⚠️ Attempt 2 failed:', error.message);
   }
 
   // ✅ ATTEMPT 3: Simplified data
   try {
-    console.log('📄 Attempt 3: Simplified data (less content)');
     const blob = await generateSimplifiedPdf(data, jobTitle, companyName);
-    console.log('✅ Simplified PDF generated successfully');
     return { success: true, blob, method: 'simplified' };
   } catch (error: any) {
     lastError = error.message;
-    console.warn('⚠️ Attempt 3 failed:', error.message);
   }
 
   // ✅ ATTEMPT 4: Minimal data
   try {
-    console.log('📄 Attempt 4: Minimal data (basic content only)');
     const blob = await generateMinimalPdf(data, jobTitle, companyName);
-    console.log('✅ Minimal PDF generated successfully');
     return { success: true, blob, method: 'minimal' };
   } catch (error: any) {
     lastError = error.message;
-    console.warn('⚠️ Attempt 4 failed:', error.message);
   }
 
   // ✅ ATTEMPT 5: Last resort - try with minimal timeout
   try {
-    console.log('📄 Attempt 5: Last resort with minimal timeout');
     const blob = await attemptPdfGeneration(data, jobTitle, companyName, 10000);
-    console.log('✅ Last resort PDF generated successfully');
     return { success: true, blob, method: 'last_resort' };
   } catch (error: any) {
     lastError = error.message;
-    console.warn('⚠️ Attempt 5 (last resort) failed:', error.message);
   }
 
   // ✅ ALL ATTEMPTS FAILED - Enhanced error reporting
-  console.error('❌ All PDF generation attempts failed');
-  console.error('🔍 Last error details:', lastError);
   
   let userFriendlyError = 'PDF generation failed after multiple attempts.';
   

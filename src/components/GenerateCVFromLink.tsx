@@ -127,19 +127,17 @@ export const GenerateCVFromLink = () => {
 	// Generate and save CV mutation
 	const { mutate: generateAndSaveCV, isPending: isGenerating } = api.resume.generateResumeFromUrlAndSave.useMutation({
 		onSuccess: (data) => {
-			console.log("✅ CV generated and saved successfully:", data.id);
 			toast.success("CV zostało wygenerowane i zapisane! 🎉");
-			
+
 			// Clear job params to disable queries
 			setJobParams(null);
-			
+
 			// Small delay to ensure proper state cleanup before navigation
 			setTimeout(() => {
 				router.push("/dashboard/cv");
 			}, 1000);
 		},
 		onError: (error) => {
-			console.error("❌ CV generation error:", error);
 			toast.error(`Błąd podczas generowania CV: ${error.message}`);
 			setStep("error");
 			setErrorMessage(error.message);
@@ -157,7 +155,6 @@ export const GenerateCVFromLink = () => {
 
 		// Handle errors
 		if (error) {
-			console.error(`❌ Error fetching ${jobParams.type} job:`, error);
 			setErrorMessage(error.message);
 			setStep("error");
 			setCvGenerationTriggered(false); // Reset flag on error
@@ -166,12 +163,6 @@ export const GenerateCVFromLink = () => {
 
 		// Handle successful data fetch
 		if (currentJobData && !isLoading && !cvGenerationTriggered) {
-			console.log("📄 Job data received, triggering CV generation:", {
-				type: jobParams.type,
-				title: currentJobData.job_title || currentJobData.title,
-				company: currentJobData.company_name || currentJobData.companyName
-			});
-			
 			setJobData(currentJobData);
 			setStep("generating");
 			setCvGenerationTriggered(true);
@@ -199,8 +190,6 @@ export const GenerateCVFromLink = () => {
 			return;
 		}
 
-		console.log("🚀 Starting job data fetch:", { type, id, url: jobUrl });
-		
 		// Reset previous state
 		setJobData(null);
 		setErrorMessage("");

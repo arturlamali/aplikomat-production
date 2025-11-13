@@ -67,7 +67,6 @@ const convertToGoogleDocsRequests = (cvData: z.infer<typeof resumeSchema>, jobTi
 	const requests = [];
 	let currentIndex = 1;
 
-	console.log("🔍 Converting CV data to Google Docs:", cvData);
 
 	// Extract name - use ResumePDF structure
 	const fullName = cvData.basics?.name || 'CV';
@@ -294,7 +293,6 @@ export default function CVDashboardPage() {
 			toast.success("CV zostało pobrane pomyślnie! 📄");
 			
 		} catch (error: any) {
-			console.error('❌ Enhanced PDF generation failed:', error);
 			
 			// ✅ COMPREHENSIVE ERROR ANALYSIS
 			let errorMessage = 'Nie udało się wygenerować PDF';
@@ -334,7 +332,6 @@ export default function CVDashboardPage() {
 		
 		try {
 			// Debug: Log CV data structure
-			console.log("🔍 CV Data structure:", cvData);
 			
 			// Check if user is logged in with Google
 			if (user?.app_metadata?.provider !== 'google') {
@@ -364,7 +361,6 @@ export default function CVDashboardPage() {
 				});
 				
 				if (error) {
-					console.error('Google OAuth error:', error);
 					toast.error("Nie udało się rozpocząć autoryzacji Google. Spróbuj ponownie.");
 				}
 				setIsExporting(null);
@@ -399,7 +395,6 @@ export default function CVDashboardPage() {
 				});
 				
 				if (error) {
-					console.error('Google OAuth reauth error:', error);
 					toast.error("Nie udało się rozpocząć ponownej autoryzacji. Spróbuj ponownie.");
 				}
 				setIsExporting(null);
@@ -428,7 +423,6 @@ export default function CVDashboardPage() {
 
 			if (!createResponse.ok) {
 				const errorData = await createResponse.text();
-				console.error('Create document error:', errorData);
 				
 				// Check if it's a permissions/scope issue
 				if (createResponse.status === 403) {
@@ -452,7 +446,6 @@ export default function CVDashboardPage() {
 						});
 						
 						if (error) {
-							console.error('Google OAuth retry error:', error);
 						}
 					}
 					setIsExporting(null);
@@ -479,7 +472,6 @@ export default function CVDashboardPage() {
 
 			if (!batchUpdateResponse.ok) {
 				const errorData = await batchUpdateResponse.text();
-				console.error('Batch update error:', errorData);
 				throw new Error(`Nie udało się zaktualizować dokumentu (${batchUpdateResponse.status})`);
 			}
 
@@ -489,7 +481,6 @@ export default function CVDashboardPage() {
 			window.open(documentUrl, '_blank');
 
 		} catch (error) {
-			console.error("Error exporting to Google Drive:", error);
 			const errorMessage = error instanceof Error ? error.message : "Nieznany błąd";
 			toast.error(`Wystąpił błąd podczas eksportowania do Google Drive: ${errorMessage}`);
 		} finally {
@@ -507,7 +498,6 @@ export default function CVDashboardPage() {
 		if (pendingExportId && user?.app_metadata?.provider === 'google' && generatedCVs) {
 			const cvToExport = generatedCVs.find(cv => cv.id === pendingExportId);
 			if (cvToExport) {
-				console.log("🔄 Resuming export after OAuth...");
 				setHasProcessedOAuthReturn(true);
 				
 				// Clean up URL first

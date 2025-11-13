@@ -92,7 +92,6 @@ function App() {
 					setContactData(JSON.parse(cachedContactData));
 				}
 			} catch (error) {
-				console.error("Error loading cached data:", error);
 			}
 		}
 	}, []);
@@ -207,10 +206,8 @@ function App() {
 		if (jobId && !isJobDataPrefetching.current) {
 			isJobDataPrefetching.current = true;
 			try {
-				console.log("Prefetching job data for ID:", jobId);
 				await getLinkedinJobByUrl.prefetch({ id: jobId });
 			} catch (error) {
-				console.log("Prefetching job data failed:", error);
 			} finally {
 				isJobDataPrefetching.current = false;
 			}
@@ -323,7 +320,6 @@ function App() {
 		const { jobTitle, companyName, jobDescription } =
 			extractJobDetails(jobData);
 
-		console.log("Rozpoczęcie wstępnego generowania CV w tle...");
 		generateResumeMutation.mutate(
 			{
 				linkedinProfile: profileData,
@@ -343,13 +339,11 @@ function App() {
 			},
 			{
 				onSuccess: (result) => {
-					console.log("Wstępne generowanie CV zakończone pomyślnie");
 					setPreGeneratedResume(result);
 					setIsPreGenerating(false);
 					isGeneratingInBackground.current = false;
 				},
 				onError: (error) => {
-					console.error("Błąd podczas wstępnego generowania CV:", error);
 					setIsPreGenerating(false);
 					isGeneratingInBackground.current = false;
 				},
@@ -373,7 +367,6 @@ function App() {
 	// Zmieniona funkcja handleGenerate - tylko pokazuje formularz i zapisuje model
 	const handleGenerate = (model?: string) => {
 		if (!profileData || !jobData) {
-			console.error("Brak danych profilu lub oferty pracy");
 			return;
 		}
 
@@ -388,18 +381,15 @@ function App() {
 
 		// Sprawdź, czy mamy już wstępnie wygenerowane CV dla tego modelu
 		if (preGeneratedResume && selectedModel === model) {
-			console.log("Używam wstępnie wygenerowanego CV");
 		} else {
 			// Rozpocznij wstępne generowanie CV
 			startBackgroundGeneration();
 		}
 
-		console.log("Wybrano model:", model);
 	};
 
 	const extractJobDetails = (jobData: any) => {
 		// Sprawdzamy różne możliwe struktury danych z API LinkedIn
-		console.log("Wyciąganie danych oferty:", jobData);
 
 		// Sprawdzamy, czy dane są bezpośrednio w obiekcie
 		if (jobData && jobData.job_title && jobData.company_name) {
@@ -430,11 +420,9 @@ function App() {
 	};
 	// Zmieniona funkcja handleContactDataSubmit - przekazuje dane kontaktowe bezpośrednio
 	const handleContactDataSubmit = async (data: ContactFormData) => {
-		console.log("Otrzymano dane kontaktowe z formularza:", data);
 
 		// Sprawdź czy dane są prawidłowe
 		if (!data.email || !data.phone) {
-			console.error("Brak wymaganych danych kontaktowych w formularzu");
 			alert("Proszę podać email i numer telefonu.");
 			return;
 		}
@@ -443,25 +431,21 @@ function App() {
 		setContactData(data);
 		setContactDataSubmitted(true);
 
-		console.log("Dane kontaktowe zapisane do stanu:", data);
 
 		// Sprawdzamy czy mamy wszystkie potrzebne dane
 		if (!profileData || !jobData || !selectedModel) {
-			console.error("Brak wymaganych danych do generowania CV");
 			alert("Brak wszystkich wymaganych danych. Spróbuj ponownie.");
 			setIsGenerating(false);
 			return;
 		}
 
 		try {
-			console.log("Rozpoczęcie generowania CV z modelem:", selectedModel);
 			setGenerationProgress(30); // Aktualizuj pasek postępu
 
 			// Pobieramy dokładne dane oferty
 			const { jobTitle, companyName, jobDescription } =
 				extractJobDetails(jobData);
 
-			console.log("Znalezione dane oferty:", {
 				jobTitle,
 				companyName,
 				jobDescription: jobDescription.slice(0, 100) + "...",
@@ -469,7 +453,6 @@ function App() {
 
 			// Jeśli mamy już wstępnie wygenerowane CV, użyj go dodając dane kontaktowe
 			if (preGeneratedResume && !resumeData) {
-				console.log(
 					"Używam wstępnie wygenerowanego CV i dodaję dane kontaktowe",
 				);
 				setGenerationProgress(60);
@@ -518,7 +501,6 @@ function App() {
 				},
 			});
 
-			console.log("Otrzymano wynik z API:", result);
 			setGenerationProgress(80);
 
 			// Zapisujemy dane z API
@@ -527,7 +509,6 @@ function App() {
 			// Generujemy PDF z danymi kontaktowymi - przekazujemy dane kontaktowe bezpośrednio
 			generatePdfWithContactData(result, data, { jobTitle, companyName });
 		} catch (error) {
-			console.error("Błąd podczas generowania CV:", error);
 			alert("Wystąpił błąd podczas generowania CV. Spróbuj ponownie.");
 			setIsGenerating(false);
 			setGenerationProgress(0);
@@ -540,7 +521,6 @@ function App() {
 		jobDetails?: { jobTitle: string; companyName: string },
 	) => {
 		try {
-			console.log("Funkcja generatePdfWithContactData uruchomiona z danymi:", {
 				contactFormData,
 				jobDetails,
 				hasResult: !!result,
@@ -548,7 +528,6 @@ function App() {
 
 			// Teraz używamy przekazanych danych, a nie stanu
 			if (!contactFormData.email || !contactFormData.phone) {
-				console.error(
 					"Brak wymaganych danych kontaktowych - email lub telefon",
 				);
 				alert("Proszę podać email i numer telefonu przed wygenerowaniem CV.");
@@ -556,7 +535,6 @@ function App() {
 			}
 
 			if (!result || !result.content) {
-				console.error("Brak danych do wygenerowania PDF");
 				alert("Wystąpił błąd podczas generowania CV. Spróbuj ponownie.");
 				setIsGenerating(false);
 				return;
@@ -587,7 +565,6 @@ function App() {
 				);
 
 				if (experienceHasTargetCompany) {
-					console.error(
 						`BŁĄD KRYTYCZNY: CV zawiera firmę ${companyName} jako poprzedniego pracodawcę, ale to firma, do której aplikujesz!`,
 					);
 					alert(
@@ -615,13 +592,11 @@ function App() {
 					const originalCompany = profileData.experiences[i].company;
 
 					if (generatedCompany !== originalCompany) {
-						console.error(
 							`BŁĄD: W pozycji doświadczenia #${i + 1} nazwa firmy została zmieniona z "${originalCompany}" na "${generatedCompany}"`,
 						);
 
 						// Automatyczna korekta
 						result.content.experience[i].company = originalCompany;
-						console.log(
 							`Skorygowano nazwę firmy w pozycji #${i + 1} na: ${originalCompany}`,
 						);
 					}
@@ -643,7 +618,6 @@ function App() {
 				},
 			};
 
-			console.log("Dane kontaktowe przekazywane do PDF:", {
 				email: updatedContent.basics.email,
 				phone: updatedContent.basics.phone,
 				location: updatedContent.basics.location,
@@ -660,7 +634,6 @@ function App() {
 			const sanitizedJobTitle = sanitizeForFileName(jobTitle);
 			const fileName = `cv-${sanitizedName}-${sanitizedCompany}-${sanitizedJobTitle}.pdf`;
 
-			console.log("Generowanie PDF: " + fileName);
 			setGenerationProgress(90);
 
 			// Generowanie PDF
@@ -672,7 +645,6 @@ function App() {
 				/>,
 			).toBlob();
 
-			console.log("PDF wygenerowany pomyślnie");
 			setGenerationProgress(100);
 
 			// Konwersja do Base64 i pobranie
@@ -722,13 +694,11 @@ function App() {
 							diagnosticLink.click();
 							document.body.removeChild(diagnosticLink);
 						} catch (diagnosticError) {
-							console.error("Błąd diagnostyki:", diagnosticError);
 						}
 					}
 				}
 			};
 		} catch (error) {
-			console.error("Błąd podczas generowania PDF:", error);
 			alert("Wystąpił błąd podczas generowania CV. Spróbuj ponownie.");
 			setIsGenerating(false);
 			setGenerationProgress(0);
@@ -990,7 +960,6 @@ function App() {
 											} p-4 text-left font-medium text-white backdrop-blur-xs transition-all hover:from-[#ffaa40] hover:to-[#9c40ff] disabled:cursor-not-allowed disabled:opacity-50`}
 											onClick={(e) => {
 												e.preventDefault();
-												console.log(`Kliknięto model: ${model.id}`);
 												handleGenerate(model.id);
 											}}
 											disabled={isGenerating || !jobData || !profileData}

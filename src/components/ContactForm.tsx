@@ -59,22 +59,16 @@ export function ContactForm({ onSubmit, defaultValues, isSubmitting = false }: C
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    console.log("Walidacja formularza - dane przed walidacją:", { email, phone, location });
-    
+
     if (validateForm()) {
       const trimmedData = {
         email: email.trim(),
         phone: phone.trim(),
         location: location.trim()
       };
-      
-      console.log("Formularz zwalidowany poprawnie, przekazuję dane:", trimmedData);
-      
+
       onSubmit(trimmedData);
       setSubmitted(true);
-    } else {
-      console.log("Walidacja formularza nieudana:", errors);
     }
   };
 

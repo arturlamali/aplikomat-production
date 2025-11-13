@@ -70,7 +70,6 @@ export function JobCard({ job }: JobCardProps) {
 					}
 				};
 			} catch (error) {
-				console.error("Error generating PDF:", error);
 				alert("Wystąpił błąd podczas generowania PDF. Spróbuj ponownie.");
 			}
 		} else {

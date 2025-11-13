@@ -16,7 +16,6 @@ export const maintenanceRouter = createTRPCRouter({
 				});
 				return { success: true };
 			} catch (error) {
-				console.error("Error saving email:", error);
 				throw new Error("Failed to save email. Please try again.");
 			}
 		}),

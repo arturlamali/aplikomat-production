@@ -99,7 +99,6 @@ Avoid generic words like "work", "team", "company" unless specifically emphasize
 
     return object;
   } catch (error) {
-    console.error("❌ AI keyword extraction failed:", error);
     
     // Fallback - basic extraction without AI
     const words = jobDescription.toLowerCase().match(/\b[\wąćęłńóśźż]+\b/g) || [];
@@ -193,7 +192,6 @@ Provide realistic, accurate scores based on actual keyword presence and relevanc
 
     return object;
   } catch (error) {
-    console.error("❌ AI ATS scoring failed:", error);
     
     // Fallback scoring
     const resumeText = extractResumeText(resumeData).toLowerCase();
@@ -262,7 +260,6 @@ Language code:`,
     return validLanguages.includes(detectedLang) ? detectedLang : 'pl';
     
   } catch (error) {
-    console.error("❌ AI language detection failed:", error);
     
     // Simple fallback - check for Polish words
     const polishIndicators = ['jest', 'się', 'do', 'na', 'przez', 'oraz', 'że', 'może', 'będzie'];
@@ -320,7 +317,6 @@ Return the enhanced prompt:`,
 ${atsEnhancement.text}`;
 
   } catch (error) {
-    console.error("❌ AI prompt enhancement failed:", error);
     
     // Fallback enhancement
     const criticalKeywords = keywordAnalysis.keywords
@@ -397,7 +393,6 @@ const extractResumeText = (resumeData: any): string => {
       });
     }
   } catch (error) {
-    console.error("❌ Error extracting resume text:", error);
   }
 
   return parts.filter(Boolean).join(' ');

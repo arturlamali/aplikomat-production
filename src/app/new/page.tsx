@@ -66,13 +66,11 @@ const AuthModal = ({
 			});
 			
 			if (error) {
-				console.error(`${provider} login error:`, error);
 				setIsLoading(null);
 			} else {
 				onAuthComplete();
 			}
 		} catch (error) {
-			console.error(`${provider} login error:`, error);
 			setIsLoading(null);
 		}
 	};

@@ -23,7 +23,6 @@ export async function middleware(request: NextRequest) {
 			/^\/ingest-internal-service/,
 			"",
 		);
-		console.info("user redirected to posthog");
 
 		return NextResponse.rewrite(posthogUrl, {
 			headers: requestHeaders,
@@ -42,7 +41,6 @@ export async function middleware(request: NextRequest) {
 			const { get } = await import("@vercel/edge-config");
 			isInMaintenanceMode = await get("isInMaintenanceMode") || false;
 		} catch (error) {
-			console.warn("Edge Config not available, falling back to env vars:", error);
 			// Fallback to environment variables
 			isInMaintenanceMode = process.env.IS_IN_MAINTENANCE_MODE === "true" || 
 								 process.env.MAINTENANCE_MODE === "true";

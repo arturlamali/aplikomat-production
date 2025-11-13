@@ -13,6 +13,8 @@ import { generateResumeContent } from "../utils/resumeRocketJobsUtils";
 import { v4 as uuidv4 } from "uuid";
 import type { resumeSchema } from "../schemas/resume";
 import type { linkedinProfileResponse } from "../schemas/linkedin";
+import { checkRateLimit } from "~/lib/rate-limit";
+import { logger } from "~/lib/logger";
 
 type GeneratedCV = typeof generatedCVs.$inferSelect;
 type ResumeContent = z.infer<typeof resumeSchema>;
@@ -39,6 +41,9 @@ export const jobsRouter = createTRPCRouter({
 			}),
 		)
 		.query(async ({ ctx, input }) => {
+			// Rate limiting for job searches
+			checkRateLimit(ctx.user.id, "JOB_SEARCH");
+
 			const {
 				cursor,
 				limit,
@@ -49,6 +54,12 @@ export const jobsRouter = createTRPCRouter({
 				workingTime,
 				minSalary,
 			} = input;
+
+			logger.info("Job search", {
+				userId: ctx.user.id,
+				query,
+				location,
+			});
 
 			// Build filters
 			const filters = [];
@@ -162,7 +173,7 @@ export const jobsRouter = createTRPCRouter({
 		.query(async ({ ctx, input }) => {
 			const { jobId } = input;
 
-			console.log("🔍 Searching for CV with jobId:", jobId);
+			logger.debug("Searching for CV with jobId", { jobId });
 
 			// Strategy 1: Direct jobId match (works for RocketJobs)
 			let generatedCV = await ctx.db.query.generatedCVs.findFirst({
@@ -173,12 +184,12 @@ export const jobsRouter = createTRPCRouter({
 			});
 
 			if (generatedCV) {
-				console.log("✅ Found CV by direct jobId match");
+				logger.debug("Found CV by direct jobId match", { jobId });
 				return generatedCV;
 			}
 
 			// Strategy 2: Search through CVs with NULL jobId for LinkedIn source ID match
-			console.log("🔍 Searching through CVs with NULL jobId for metadata match...");
+			logger.debug("Searching through CVs with NULL jobId for metadata match");
 			const nullJobIdCVs = await ctx.db.query.generatedCVs.findMany({
 				where: and(
 					eq(generatedCVs.ownerId, ctx.user.id),
@@ -196,9 +207,9 @@ export const jobsRouter = createTRPCRouter({
 			}) || null;
 
 			if (generatedCV) {
-				console.log("✅ Found CV by metadata search in NULL jobId CVs");
+				logger.debug("Found CV by metadata search in NULL jobId CVs", { jobId });
 			} else {
-				console.log("❌ No CV found for jobId:", jobId);
+				logger.debug("No CV found for jobId", { jobId });
 			}
 
 			return generatedCV;
@@ -211,6 +222,13 @@ export const jobsRouter = createTRPCRouter({
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
+			// Rate limiting for AI generation
+			checkRateLimit(ctx.user.id, "AI_GENERATION");
+
+			logger.info("Generating CV from job", {
+				userId: ctx.user.id,
+				jobId: input.jobId,
+			});
 			const { jobId } = input;
 
 			const job = await ctx.db.query.jobs.findFirst({
@@ -323,7 +341,17 @@ export const jobsRouter = createTRPCRouter({
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
+			// Rate limiting for AI generation
+			checkRateLimit(ctx.user.id, "AI_GENERATION");
+
 			const { jobId, jobTitle, companyName } = input;
+
+			logger.info("Generating CV", {
+				userId: ctx.user.id,
+				jobId,
+				jobTitle,
+				companyName,
+			});
 
 			// Get the user's LinkedIn profile
 			const linkedinProfile =

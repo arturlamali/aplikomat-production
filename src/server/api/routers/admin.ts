@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 import { jobs } from "~/server/db/schema.postgres";
 import { eq, inArray } from "drizzle-orm";
 import type { SQL, Placeholder } from "drizzle-orm";
+import { logger } from "~/lib/logger";
 
 // Define category ID to name mapping
 const categoryIdToName: Record<string, string> = {
@@ -358,7 +359,7 @@ export const adminRouter = createTRPCRouter({
 					total: input.jobs.length,
 				};
 			} catch (error) {
-				console.error("Error processing jobs:", error);
+				logger.error("Error processing jobs", error);
 				throw new Error("Failed to process jobs");
 			}
 		}),

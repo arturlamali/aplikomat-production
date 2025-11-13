@@ -13,6 +13,8 @@ import { generateObject } from "ai";
 import { google } from "@ai-sdk/google";
 import { openai } from "@ai-sdk/openai";
 import { anthropic } from "@ai-sdk/anthropic";
+import { checkRateLimit } from "~/lib/rate-limit";
+import { logger } from "~/lib/logger";
 
 // ===== IMPORT ATS OPTIMIZATION =====
 import { 
@@ -186,7 +188,7 @@ const generateExperienceSection = async ({
 	detectedLanguage: string;
 	keywordAnalysis: KeywordAnalysis;
 }) => {
-	console.log("🔄 Generating ATS-optimized experience section");
+	logger.info("Generating ATS-optimized experience section");
 	try {
 		const criticalKeywords = keywordAnalysis.keywords
 			.filter(k => k.importance === 'critical')
@@ -202,8 +204,10 @@ const generateExperienceSection = async ({
 		const targetJobTitle = job.job_title || "";
 		const isPolish = detectedLanguage === "pl";
 
-		console.log(`🎯 ATS Keywords - Critical: ${criticalKeywords.join(', ')}`);
-		console.log(`🎯 ATS Keywords - High: ${highKeywords.join(', ')}`);
+		logger.debug("ATS Keywords extracted", {
+			critical: criticalKeywords,
+			high: highKeywords,
+		});
 
 		const experiences = await Promise.all(
 			profile.experiences.map(async (exp) => {
@@ -276,11 +280,11 @@ Generate compelling content that passes ATS screening while remaining truthful a
 						endDate: isCurrent ? null : (formattedEndDate || object.endDate),
 					};
 
-					console.log(`✅ Generated ATS-optimized experience for ${originalTitle}`);
+					logger.debug("Generated ATS-optimized experience", { title: originalTitle });
 					return correctedObject;
 
 				} catch (error) {
-					console.error(`❌ Error generating experience for ${exp.title}:`, error);
+					logger.error(`Error generating experience for ${exp.title}`, error, { expTitle: exp.title });
 					
 					// Fallback
 					return {
@@ -298,7 +302,7 @@ Generate compelling content that passes ATS screening while remaining truthful a
 		);
 		return experiences;
 	} catch (error) {
-		console.error("❌ Error in generateExperienceSection:", error);
+		logger.error("Error in generateExperienceSection", error);
 		throw new Error("Failed to generate experience section");
 	}
 };
@@ -317,7 +321,7 @@ const generateSkillsSection = async ({
 	detectedLanguage: string;
 	keywordAnalysis: KeywordAnalysis;
 }) => {
-	console.log("🔄 Generating ATS-optimized skills section");
+	logger.info("Generating ATS-optimized skills section");
 	try {
 		const criticalKeywords = keywordAnalysis.keywords.filter(k => k.importance === 'critical');
 		const technicalKeywords = keywordAnalysis.keywords.filter(k => k.category === 'technical');
@@ -358,7 +362,7 @@ Generate skills in ${isPolish ? 'Polish' : 'English'} where appropriate.`,
 		
 		return object;
 	} catch (error) {
-		console.error("❌ Error in generateSkillsSection:", error);
+		logger.error("Error in generateSkillsSection", error);
 		return {
 			coreCompetencies: ["Marketing", "SEO", "Analytics"],
 			technicalSkills: ["Google Analytics", "JavaScript"],
@@ -387,7 +391,7 @@ const generateBasicsSection = async ({
 	detectedLanguage: string;
 	keywordAnalysis: KeywordAnalysis;
 }) => {
-	console.log("🔄 Generating ATS-optimized basics section");
+	logger.info("Generating ATS-optimized basics section");
 	try {
 		const criticalKeywords = keywordAnalysis.keywords
 			.filter(k => k.importance === 'critical')
@@ -441,7 +445,7 @@ Generate compelling ${isPolish ? 'Polish' : 'English'} content optimized for ATS
 
 		return basics;
 	} catch (error) {
-		console.error("❌ Error in generateBasicsSection:", error);
+		logger.error("Error in generateBasicsSection", error);
 		return {
 			name: `${profile.first_name} ${profile.last_name}`,
 			title: profile.headline || "Professional",
@@ -466,7 +470,7 @@ const generateInterestsSection = async ({
 	model: string;
 	detectedLanguage: string;
 }) => {
-	console.log("🔄 Generating interests section");
+	logger.info("Generating interests section");
 	try {
 		const isPolish = detectedLanguage === "pl";
 
@@ -501,7 +505,7 @@ Generate natural ${isPolish ? 'Polish' : 'English'} interests.`,
 		});
 		return object.interests || [];
 	} catch (error) {
-		console.error("❌ Error in generateInterestsSection:", error);
+		logger.error("Error in generateInterestsSection", error);
 		return detectedLanguage === "pl" 
 			? ["Technologie", "Innowacje", "Uczenie się"]
 			: ["Technology", "Innovation", "Learning"];
@@ -513,7 +517,7 @@ const generateLanguagesSection = async ({
 }: {
 	profile: z.infer<typeof linkedinProfileResponse>;
 }) => {
-	console.log("🔄 Processing languages section");
+	logger.info("Processing languages section");
 	try {
 		if (!profile.languages || profile.languages.length === 0) {
 			return [];
@@ -583,7 +587,7 @@ const generateLanguagesSection = async ({
 
 		return languages;
 	} catch (error) {
-		console.error("❌ Error in generateLanguagesSection:", error);
+		logger.error("Error in generateLanguagesSection", error);
 		return [];
 	}
 };
@@ -604,11 +608,11 @@ const generateResumeContent = async ({
 		location?: string;
 	};
 }) => {
-	console.log("🚀 Starting AI-powered ATS-optimized resume generation");
+	logger.info("Starting AI-powered ATS-optimized resume generation");
 
 	// ✅ AI-POWERED LANGUAGE DETECTION
 	const detectedLanguage = await detectJobLanguage(job.job_description || "", job.job_title || "");
-	console.log(`🌍 AI detected language: ${detectedLanguage}`);
+	logger.info("AI detected language", { language: detectedLanguage });
 
 	// ✅ AI-POWERED KEYWORD EXTRACTION
 	const keywordAnalysis = await extractAdvancedKeywords(
@@ -616,8 +620,12 @@ const generateResumeContent = async ({
 		job.job_title || ""
 	);
 	
-	console.log(`🎯 AI extracted ${keywordAnalysis.keywords.length} keywords for ATS optimization`);
-	console.log(`🔑 Critical keywords: ${keywordAnalysis.keywords.filter(k => k.importance === 'critical').map(k => k.keyword).join(', ')}`);
+	logger.info("AI extracted keywords for ATS optimization", {
+		totalKeywords: keywordAnalysis.keywords.length,
+		criticalKeywords: keywordAnalysis.keywords
+			.filter(k => k.importance === 'critical')
+			.map(k => k.keyword),
+	});
 
 	const targetCompany = job.company_name || job.data?.company_name || "Company";
 
@@ -663,9 +671,11 @@ const generateResumeContent = async ({
 	};
 
 	const atsScore = await calculateATSScore(preliminaryResumeData, keywordAnalysis);
-	console.log(`📊 AI calculated ATS Score: ${atsScore.overallScore}/100`);
-	console.log(`📈 Keyword Match: ${atsScore.keywordMatch}/100`);
-	console.log(`🎯 Missing Keywords: ${atsScore.missingKeywords.join(', ')}`);
+	logger.info("AI calculated ATS Score", {
+		overallScore: atsScore.overallScore,
+		keywordMatch: atsScore.keywordMatch,
+		missingKeywords: atsScore.missingKeywords,
+	});
 
 	// Final resume data with ATS analysis
 	const resumeData = {
@@ -753,7 +763,16 @@ export const resumeRouter = createTRPCRouter({
 			}),
 		)
 		.mutation(async ({ input, ctx }) => {
+			// Rate limiting for AI generation
+			checkRateLimit(ctx.user.id, "AI_GENERATION");
+
 			const { jobUrl, jobType, userContactData } = input;
+
+			logger.info("Generating resume from URL", {
+				userId: ctx.user.id,
+				jobType,
+				jobUrl,
+			});
 
 			const linkedinProfile = await ctx.db.query.linkedinCachedProfiles.findFirst({
 				where: eq(linkedinCachedProfiles.ownerId, ctx.user.id),
@@ -844,7 +863,7 @@ export const resumeRouter = createTRPCRouter({
 				company_description: jobData.company_description || "",
 			};
 
-			console.log("🔥 Normalized job data:", normalizedJobData);
+			logger.debug("Normalized job data", { jobData: normalizedJobData });
 
 			// ✅ GENERATE WITH AI-POWERED ATS OPTIMIZATION
 			const resumeContent = await generateResumeContent({
@@ -858,8 +877,9 @@ export const resumeRouter = createTRPCRouter({
 				throw new Error("Failed to generate resume content");
 			}
 
-			console.log("🎉 AI-optimized CV generated, saving to database...");
-			console.log(`📊 Final ATS Score: ${resumeContent.atsAnalysis?.score.overallScore}/100`);
+			logger.info("AI-optimized CV generated, saving to database", {
+				atsScore: resumeContent.atsAnalysis?.score.overallScore,
+			});
 
 			const dbJobId = jobType === "linkedin" ? null : jobMetadata.sourceId;
 			const cvId = uuidv4();
@@ -878,7 +898,7 @@ export const resumeRouter = createTRPCRouter({
 				updatedAt: new Date().toISOString(),
 			});
 
-			console.log("✅ AI-optimized CV saved to database with ID:", cvId);
+			logger.info("AI-optimized CV saved to database", { cvId });
 
 			return {
 				id: cvId,
